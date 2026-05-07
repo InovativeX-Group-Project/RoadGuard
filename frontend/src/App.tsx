@@ -40,9 +40,9 @@ export default function App() {
     }
   }, []);
 
-  const handleLogin = (email: string, password: string) => {
+  const handleLogin = async (email: string, password: string) => {
     try {
-      const loggedIn = loginUser({ email, password });
+      const loggedIn = await loginUser({ email, password });
       setUser(loggedIn);
       setCurrentView(loggedIn.role === 'admin' ? 'admin' : 'dashboard');
       toast.success(`Welcome back, ${loggedIn.name}`);
@@ -51,9 +51,9 @@ export default function App() {
     }
   };
 
-  const handleSignup = (name: string, email: string, password: string) => {
+  const handleSignup = async (name: string, email: string, password: string) => {
     try {
-      const createdUser = signupUser({ name, email, password });
+      const createdUser = await signupUser({ name, email, password });
       setUser(createdUser);
       setCurrentView('dashboard');
       toast.success('Account created successfully.');

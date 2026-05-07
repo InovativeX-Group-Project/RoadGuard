@@ -3,6 +3,8 @@ import { Comment, Report, ReportStatus, User } from './types';
 const REPORTS_KEY = 'roadguard_reports';
 const USER_KEY = 'roadguard_user';
 const USERS_KEY = 'roadguard_users';
+const TOKEN_KEY = 'roadguard_token';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 interface StoredUser extends User {
   password: string;
@@ -182,9 +184,10 @@ export const setCurrentUser = (user: User) => {
 
 export const clearCurrentUser = () => {
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 };
 
-export const signupUser = ({
+export const signupUser = async ({
   name,
   email,
   password,
@@ -192,59 +195,50 @@ export const signupUser = ({
   name: string;
   email: string;
   password: string;
-}): User => {
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = getStoredUsers();
+}): Promise<User> => {
+  const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+    }),
+  });
 
-  if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
-    throw new Error('An account with this email already exists.');
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Signup failed');
   }
 
-  const newUser: User = {
-    id: `user-${Date.now()}`,
-    name: name.trim(),
-    email: normalizedEmail,
-    role: 'citizen',
-  };
+  localStorage.setItem(TOKEN_KEY, data.token);
+  setCurrentUser(data.user);
 
-  users.push({ ...newUser, password });
-  saveStoredUsers(users);
-  setCurrentUser(newUser);
-
-  return newUser;
+  return data.user;
 };
 
-export const loginUser = ({
+export const loginUser = async ({
   email,
   password,
 }: {
   email: string;
   password: string;
-}): User => {
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = getStoredUsers();
-  let match = users.find((u) => u.email.toLowerCase() === normalizedEmail);
-
-  // Dev-mode relaxed auth: allow login without password verification.
-  if (!match) {
-    match = {
-      id: `user-${Date.now()}`,
-      name: normalizedEmail.split('@')[0] || 'Citizen User',
-      email: normalizedEmail,
-      role: 'citizen',
+}): Promise<User> => {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: email.trim().toLowerCase(),
       password,
-    };
-    users.push(match);
-    saveStoredUsers(users);
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Login failed');
   }
 
-  const sessionUser: User = {
-    id: match.id,
-    name: match.name,
-    email: match.email,
-    role: match.role,
-  };
-
-  setCurrentUser(sessionUser);
-  return sessionUser;
+  localStorage.setItem(TOKEN_KEY, data.token);
+  setCurrentUser(data.user);
+  return data.user;
 };

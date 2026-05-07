@@ -2,8 +2,63 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { getUsers, saveUsers, hashPassword, comparePassword } = require('../utils/data');
+const { isDatabaseEnabled, query } = require('../config/db');
 
 const router = express.Router();
+
+const normalizeUser = (row) => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  role: row.role,
+});
+
+const findUserByEmail = async (email) => {
+  if (isDatabaseEnabled()) {
+    const result = await query(
+      `SELECT id, name, email, role, password_hash
+       FROM users
+       WHERE lower(email) = lower($1)
+       LIMIT 1`,
+      [email]
+    );
+    if (result.rowCount === 0) {
+      return null;
+    }
+    return {
+      ...normalizeUser(result.rows[0]),
+      password: result.rows[0].password_hash,
+    };
+  }
+
+  const users = getUsers();
+  return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
+};
+
+const createUser = async ({ name, email, passwordHash }) => {
+  if (isDatabaseEnabled()) {
+    const result = await query(
+      `INSERT INTO users (id, name, email, role, password_hash)
+       VALUES ($1, $2, $3, 'citizen', $4)
+       RETURNING id, name, email, role`,
+      [uuidv4(), name, email, passwordHash]
+    );
+    return normalizeUser(result.rows[0]);
+  }
+
+  const users = getUsers();
+  const newUser = {
+    id: uuidv4(),
+    name,
+    email,
+    role: 'citizen',
+    password: passwordHash,
+  };
+  users.push(newUser);
+  saveUsers(users);
+  const { password, ...userWithoutPassword } = newUser;
+  return userWithoutPassword;
+};
 
 // Login
 router.post('/login', async (req, res) => {
@@ -14,8 +69,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const users = getUsers();
-    const user = users.find(u => u.email === email);
+    const user = await findUserByEmail(email);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -58,10 +112,10 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
-    const users = getUsers();
+    const existingUser = await findUserByEmail(email);
 
     // Check if user already exists
-    if (users.find(u => u.email === email)) {
+    if (existingUser) {
       return res.status(409).json({ error: 'User with this email already exists' });
     }
 
@@ -69,16 +123,11 @@ router.post('/signup', async (req, res) => {
     const hashedPassword = await hashPassword(password);
 
     // Create new user
-    const newUser = {
-      id: uuidv4(),
+    const newUser = await createUser({
       name,
       email,
-      role: 'citizen',
-      password: hashedPassword
-    };
-
-    users.push(newUser);
-    saveUsers(users);
+      passwordHash: hashedPassword,
+    });
 
     // Create JWT token
     const token = jwt.sign(
@@ -88,9 +137,8 @@ router.post('/signup', async (req, res) => {
     );
 
     // Return user without password
-    const { password: _, ...userWithoutPassword } = newUser;
     res.status(201).json({
-      user: userWithoutPassword,
+      user: newUser,
       token
     });
   } catch (error) {
