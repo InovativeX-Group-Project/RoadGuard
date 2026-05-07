@@ -1,0 +1,6 @@
+{
+  "name": "RoadGuard SA",
+  "description": "A modern civic reporting platform for road damage with AI-powered detection and status tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["AI Image Analysis", "Real-time Status Tracking"]
+}
