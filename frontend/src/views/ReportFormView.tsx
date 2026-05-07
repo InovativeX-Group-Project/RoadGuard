@@ -69,6 +69,11 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
     
     setIsSubmitting(true);
     const user = getCurrentUser();
+    if (!user) {
+      setIsSubmitting(false);
+      toast.error('Please log in before submitting a report.');
+      return;
+    }
     
     const newReport: Report = {
       id: `rep-${Date.now()}`,

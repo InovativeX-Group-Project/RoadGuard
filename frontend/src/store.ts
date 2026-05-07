@@ -3,6 +3,21 @@ import { Report, User } from "./types";
 
 const REPORTS_KEY = 'roadguard_reports';
 const USER_KEY = 'roadguard_user';
+const USERS_KEY = 'roadguard_users';
+
+interface StoredUser extends User {
+  password: string;
+}
+
+const DEFAULT_AUTH_USERS: StoredUser[] = [
+  {
+    id: 'admin-1',
+    name: 'Council Staff',
+    email: 'staff@roadguard.gov.za',
+    role: 'admin',
+    password: 'admin123'
+  }
+];
 
 export const getReports = (): Report[] => {
   const data = localStorage.getItem(REPORTS_KEY);
@@ -52,21 +67,94 @@ export const saveReport = (report: Report) => {
   localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
 };
 
-export const getCurrentUser = (): User => {
+const getStoredUsers = (): StoredUser[] => {
+  const data = localStorage.getItem(USERS_KEY);
+  if (data) {
+    return JSON.parse(data);
+  }
+
+  localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_AUTH_USERS));
+  return DEFAULT_AUTH_USERS;
+};
+
+const saveStoredUsers = (users: StoredUser[]) => {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+};
+
+export const getCurrentUser = (): User | null => {
   const data = localStorage.getItem(USER_KEY);
-  if (data) return JSON.parse(data);
-  
-  // Default demo user
-  const defaultUser: User = {
-    id: 'user-1',
-    name: 'John Smith',
-    email: 'john@example.com',
-    role: 'citizen'
-  };
-  localStorage.setItem(USER_KEY, JSON.stringify(defaultUser));
-  return defaultUser;
+  if (data) {
+    return JSON.parse(data);
+  }
+
+  return null;
 };
 
 export const setCurrentUser = (user: User) => {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+};
+
+export const clearCurrentUser = () => {
+  localStorage.removeItem(USER_KEY);
+};
+
+export const signupUser = ({
+  name,
+  email,
+  password
+}: {
+  name: string;
+  email: string;
+  password: string;
+}): User => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const users = getStoredUsers();
+
+  if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
+    throw new Error('An account with this email already exists.');
+  }
+
+  const newUser: User = {
+    id: `user-${Date.now()}`,
+    name: name.trim(),
+    email: normalizedEmail,
+    role: 'citizen'
+  };
+
+  const stored: StoredUser = {
+    ...newUser,
+    password
+  };
+
+  users.push(stored);
+  saveStoredUsers(users);
+  setCurrentUser(newUser);
+
+  return newUser;
+};
+
+export const loginUser = ({
+  email,
+  password
+}: {
+  email: string;
+  password: string;
+}): User => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const users = getStoredUsers();
+  const match = users.find((u) => u.email.toLowerCase() === normalizedEmail && u.password === password);
+
+  if (!match) {
+    throw new Error('Invalid email or password.');
+  }
+
+  const sessionUser: User = {
+    id: match.id,
+    name: match.name,
+    email: match.email,
+    role: match.role
+  };
+
+  setCurrentUser(sessionUser);
+  return sessionUser;
 };
