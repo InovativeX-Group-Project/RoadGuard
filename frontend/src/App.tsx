@@ -2,24 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  PlusCircle, 
-  LayoutDashboard, 
   MapPin, 
-  CircleCheck, 
-  Clock, 
-  AlertTriangle,
   LogOut,
   User as UserIcon,
   ShieldCheck,
-  ChevronRight,
   Menu,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
-import { getCurrentUser, setCurrentUser, getReports, saveReport } from '@/store';
-import { User, Report } from '@/types';
+import { clearCurrentUser, getCurrentUser, loginUser, signupUser } from '@/store';
+import { User } from '@/types';
 
 // Views
 import LandingView from '@/views/LandingView';
@@ -27,8 +21,10 @@ import DashboardView from '@/views/DashboardView';
 import ReportFormView from '@/views/ReportFormView';
 import ReportDetailView from '@/views/ReportDetailView';
 import AdminDashboardView from '@/views/AdminDashboardView';
+import LoginView from '@/views/LoginView';
+import SignupView from '@/views/SignupView';
 
-type ViewState = 'landing' | 'dashboard' | 'report-form' | 'report-detail' | 'admin';
+type ViewState = 'landing' | 'login' | 'signup' | 'dashboard' | 'report-form' | 'report-detail' | 'admin';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('landing');
@@ -39,22 +35,35 @@ export default function App() {
   useEffect(() => {
     const loadedUser = getCurrentUser();
     setUser(loadedUser);
+    if (loadedUser) {
+      setCurrentView(loadedUser.role === 'admin' ? 'admin' : 'dashboard');
+    }
   }, []);
 
-  const handleLogin = (role: 'citizen' | 'admin') => {
-    const newUser: User = {
-      id: role === 'citizen' ? 'user-1' : 'admin-1',
-      name: role === 'citizen' ? 'John Smith' : 'Council Staff',
-      email: role === 'citizen' ? 'john@example.com' : 'staff@roadguard.gov.za',
-      role: role
-    };
-    setCurrentUser(newUser);
-    setUser(newUser);
-    setCurrentView(role === 'citizen' ? 'dashboard' : 'admin');
-    toast.success(`Logged in as ${newUser.name}`);
+  const handleLogin = (email: string, password: string) => {
+    try {
+      const loggedIn = loginUser({ email, password });
+      setUser(loggedIn);
+      setCurrentView(loggedIn.role === 'admin' ? 'admin' : 'dashboard');
+      toast.success(`Welcome back, ${loggedIn.name}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to log in.');
+    }
+  };
+
+  const handleSignup = (name: string, email: string, password: string) => {
+    try {
+      const createdUser = signupUser({ name, email, password });
+      setUser(createdUser);
+      setCurrentView('dashboard');
+      toast.success('Account created successfully.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to create account.');
+    }
   };
 
   const handleLogout = () => {
+    clearCurrentUser();
     setUser(null);
     setCurrentView('landing');
     toast.info("Logged out successfully");
@@ -114,9 +123,9 @@ export default function App() {
               </>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => handleLogin('citizen')}>Citizen Portal</Button>
-                <Button variant="outline" onClick={() => handleLogin('admin')}>Staff Login</Button>
-                <Button className="bg-brand-600 hover:bg-brand-700" onClick={() => handleLogin('citizen')}>Get Started</Button>
+                <Button variant="ghost" onClick={() => setCurrentView('login')}>Log In</Button>
+                <Button variant="outline" onClick={() => setCurrentView('signup')}>Sign Up</Button>
+                <Button className="bg-brand-600 hover:bg-brand-700" onClick={() => setCurrentView('signup')}>Get Started</Button>
               </>
             )}
           </nav>
@@ -147,9 +156,9 @@ export default function App() {
                 </>
                ) : (
                 <>
-                  <Button variant="ghost" onClick={() => handleLogin('citizen')}>Citizen Portal</Button>
-                  <Button variant="ghost" onClick={() => handleLogin('admin')}>Staff Login</Button>
-                  <Button className="bg-brand-600" onClick={() => handleLogin('citizen')}>Get Started</Button>
+                  <Button variant="ghost" onClick={() => { setCurrentView('login'); setIsMenuOpen(false); }}>Log In</Button>
+                  <Button variant="ghost" onClick={() => { setCurrentView('signup'); setIsMenuOpen(false); }}>Sign Up</Button>
+                  <Button className="bg-brand-600" onClick={() => { setCurrentView('signup'); setIsMenuOpen(false); }}>Get Started</Button>
                 </>
                )}
             </div>
@@ -168,7 +177,19 @@ export default function App() {
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            {currentView === 'landing' && <LandingView onReportClick={() => handleLogin('citizen')} />}
+            {currentView === 'landing' && <LandingView onReportClick={() => setCurrentView('signup')} />}
+            {currentView === 'login' && (
+              <LoginView
+                onLogin={handleLogin}
+                onGoToSignup={() => setCurrentView('signup')}
+              />
+            )}
+            {currentView === 'signup' && (
+              <SignupView
+                onSignup={handleSignup}
+                onGoToLogin={() => setCurrentView('login')}
+              />
+            )}
             {currentView === 'dashboard' && user && (
               <DashboardView 
                 onNewReport={() => setCurrentView('report-form')} 

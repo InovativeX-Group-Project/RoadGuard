@@ -54,7 +54,7 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
 
     const newComment: Comment = {
       id: `comm-${Date.now()}`,
-      author: user.role === 'admin' ? 'Municipal Staff' : user.name,
+      author: user?.role === 'admin' ? 'Municipal Staff' : (user?.name || 'Citizen'),
       text: commentText,
       timestamp: new Date().toISOString()
     };
@@ -116,7 +116,7 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
                   <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center">
                     <User size={12} className="text-slate-500" />
                   </div>
-                  {report.userId === user.id ? "You" : "Citizen"}
+                  {report.userId === user?.id ? "You" : "Citizen"}
                 </div>
               </div>
               <div className="md:col-span-2">
