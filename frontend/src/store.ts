@@ -232,10 +232,19 @@ export const loginUser = ({
 }): User => {
   const normalizedEmail = email.trim().toLowerCase();
   const users = getStoredUsers();
-  const match = users.find((u) => u.email.toLowerCase() === normalizedEmail && u.password === password);
+  let match = users.find((u) => u.email.toLowerCase() === normalizedEmail);
 
+  // Dev-mode relaxed auth: allow login without password verification.
   if (!match) {
-    throw new Error('Invalid email or password.');
+    match = {
+      id: `user-${Date.now()}`,
+      name: normalizedEmail.split('@')[0] || 'Citizen User',
+      email: normalizedEmail,
+      role: 'citizen',
+      password
+    };
+    users.push(match);
+    saveStoredUsers(users);
   }
 
   const sessionUser: User = {
