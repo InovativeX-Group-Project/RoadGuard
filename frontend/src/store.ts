@@ -1,177 +1,174 @@
+import { Comment, Report, ReportStatus, User } from './types';
 
-import { Report, User } from "./types";
+const REPORTS_KEY = 'roadguard_reports';
+const USER_KEY = 'roadguard_user';
+const USERS_KEY = 'roadguard_users';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+interface StoredUser extends User {
+  password: string;
+}
 
-// API helper functions
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = localStorage.getItem('roadguard_token');
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+const DEFAULT_AUTH_USERS: StoredUser[] = [
+  {
+    id: 'admin-1',
+    name: 'Council Staff',
+    email: 'staff@roadguard.gov.za',
+    role: 'admin',
+    password: 'admin123',
+  },
+];
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+const INITIAL_REPORTS: Report[] = [
+  {
+    id: 'rep-mock-1',
+    userId: 'user-1',
+    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80',
+    issueType: 'Pothole',
+    description: 'Large pothole in the middle of the left lane. Hazardous for low cars.',
+    location: 'Jan Shoba St, Pretoria',
+    timestamp: new Date().toISOString(),
+    status: 'In Progress',
+    history: [
+      {
+        status: 'Pending',
+        timestamp: new Date().toISOString(),
+        updatedBy: 'Self',
+      },
+    ],
+    comments: [
+      {
+        id: 'c1',
+        author: 'Municipal Staff',
+        text: 'Crew dispatched to assess.',
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  },
+  {
+    id: 'rep-mock-2',
+    userId: 'user-1',
+    image: 'https://images.unsplash.com/photo-1590481284891-95562723707c?auto=format&fit=crop&w=800&q=80',
+    issueType: 'Broken Traffic Light',
+    description: 'Main intersection lights are out. Causing major congestion.',
+    location: 'Glyn St & Burnett St, Pretoria',
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    status: 'Resolved',
+    history: [
+      {
+        status: 'Resolved',
+        timestamp: new Date().toISOString(),
+        updatedBy: 'Council',
+      },
+    ],
+    comments: [],
+  },
+];
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Network error' }));
-    throw new Error(error.error || `HTTP ${response.status}`);
-  }
-
-  return response.json();
-};
-
-// Authentication functions
-export const loginUser = async (credentials: { email: string; password: string }) => {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Login failed');
-  }
-
-  const data = await response.json();
-  localStorage.setItem('roadguard_token', data.token);
-  localStorage.setItem('roadguard_user', JSON.stringify(data.user));
-  return data.user;
-};
-
-export const signupUser = async (userData: { name: string; email: string; password: string }) => {
-  const response = await fetch(`${API_BASE_URL}/auth/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Signup failed');
-  }
-
-  const data = await response.json();
-  localStorage.setItem('roadguard_token', data.token);
-  localStorage.setItem('roadguard_user', JSON.stringify(data.user));
-  return data.user;
-};
-
-export const getReports = async (): Promise<Report[]> => {
-  try {
-    return await apiRequest('/reports');
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    // Fallback to localStorage for demo purposes
-    const data = localStorage.getItem('roadguard_reports');
-    if (data) return JSON.parse(data);
-    return [];
-  }
-};
-
-export const getReport = async (id: string): Promise<Report | null> => {
-  try {
-    return await apiRequest(`/reports/${id}`);
-  } catch (error) {
-    console.error('Error fetching report:', error);
-    // Fallback to localStorage
-    const reports = getReports();
-    return reports.find(r => r.id === id) || null;
-  }
-};
-
-export const saveReport = async (report: Report): Promise<void> => {
-  try {
-    // For new reports, use the API
-    if (!report.id) {
-      const formData = new FormData();
-      formData.append('issueType', report.issueType);
-      formData.append('description', report.description);
-      formData.append('location', report.location);
-
-      // Handle image - if it's a data URL, convert to blob
-      if (report.image && report.image.startsWith('data:')) {
-        const response = await fetch(report.image);
-        const blob = await response.blob();
-        formData.append('image', blob, 'image.jpg');
-      }
-
-      const token = localStorage.getItem('roadguard_token');
-      const response = await fetch(`${API_BASE_URL}/reports`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create report');
-      }
-    } else {
-      // For updates, this would need additional API endpoints
-      console.warn('Report updates not implemented in API yet');
-    }
-  } catch (error) {
-    console.error('Error saving report:', error);
-    // Fallback to localStorage
-    const reports = getReports();
-    const index = reports.findIndex(r => r.id === report.id);
-    if (index >= 0) {
-      reports[index] = report;
-    } else {
-      reports.unshift(report);
-    }
-    localStorage.setItem('roadguard_reports', JSON.stringify(reports));
-  }
-};
-
-export const updateReportStatus = async (reportId: string, status: string): Promise<void> => {
-  try {
-    await apiRequest(`/reports/${reportId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-  } catch (error) {
-    console.error('Error updating report status:', error);
-  }
-};
-
-export const addReportComment = async (reportId: string, text: string): Promise<void> => {
-  try {
-    await apiRequest(`/reports/${reportId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-    });
-  } catch (error) {
-    console.error('Error adding comment:', error);
-  }
-};
-
-const getStoredUsers = (): StoredUser[] => {
-  const data = localStorage.getItem('roadguard_users');
+const readReports = (): Report[] => {
+  const data = localStorage.getItem(REPORTS_KEY);
   if (data) {
     return JSON.parse(data);
   }
 
-  localStorage.setItem('roadguard_users', JSON.stringify(DEFAULT_AUTH_USERS));
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(INITIAL_REPORTS));
+  return INITIAL_REPORTS;
+};
+
+const writeReports = (reports: Report[]) => {
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+};
+
+const getStoredUsers = (): StoredUser[] => {
+  const data = localStorage.getItem(USERS_KEY);
+  if (data) {
+    return JSON.parse(data);
+  }
+
+  localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_AUTH_USERS));
   return DEFAULT_AUTH_USERS;
 };
 
 const saveStoredUsers = (users: StoredUser[]) => {
-  localStorage.setItem('roadguard_users', JSON.stringify(users));
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+};
+
+export const getReports = async (): Promise<Report[]> => {
+  return readReports();
+};
+
+export const getReport = async (id: string): Promise<Report | null> => {
+  const reports = readReports();
+  return reports.find((r) => r.id === id) || null;
+};
+
+export const saveReport = async (report: Report): Promise<void> => {
+  const reports = readReports();
+  const id = report.id || `rep-${Date.now()}`;
+  const index = reports.findIndex((r) => r.id === id);
+
+  const normalizedReport: Report = {
+    ...report,
+    id,
+    timestamp: report.timestamp || new Date().toISOString(),
+    status: report.status || 'Pending',
+    history: report.history || [
+      {
+        status: 'Pending',
+        timestamp: new Date().toISOString(),
+        updatedBy: getCurrentUser()?.name || 'Citizen',
+      },
+    ],
+    comments: report.comments || [],
+  };
+
+  if (index >= 0) {
+    reports[index] = normalizedReport;
+  } else {
+    reports.unshift(normalizedReport);
+  }
+
+  writeReports(reports);
+};
+
+export const updateReportStatus = async (reportId: string, status: string): Promise<void> => {
+  const reports = readReports();
+  const report = reports.find((r) => r.id === reportId);
+  if (!report) {
+    return;
+  }
+
+  const nextStatus = status as ReportStatus;
+  report.status = nextStatus;
+  report.history.push({
+    status: nextStatus,
+    timestamp: new Date().toISOString(),
+    updatedBy: getCurrentUser()?.role === 'admin' ? 'Municipal Staff' : 'Citizen',
+  });
+
+  writeReports(reports);
+};
+
+export const addReportComment = async (reportId: string, text: string): Promise<void> => {
+  const reports = readReports();
+  const report = reports.find((r) => r.id === reportId);
+  if (!report) {
+    return;
+  }
+
+  const user = getCurrentUser();
+  const comment: Comment = {
+    id: `comm-${Date.now()}`,
+    author: user?.role === 'admin' ? 'Municipal Staff' : (user?.name || 'Citizen'),
+    text,
+    timestamp: new Date().toISOString(),
+  };
+
+  report.comments.push(comment);
+  writeReports(reports);
 };
 
 export const getCurrentUser = (): User | null => {
-  const data = localStorage.getItem('roadguard_user');
+  const data = localStorage.getItem(USER_KEY);
   if (data) {
     return JSON.parse(data);
   }
@@ -180,18 +177,17 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const setCurrentUser = (user: User) => {
-  localStorage.setItem('roadguard_user', JSON.stringify(user));
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
 };
 
 export const clearCurrentUser = () => {
-  localStorage.removeItem('roadguard_user');
-  localStorage.removeItem('roadguard_token');
+  localStorage.removeItem(USER_KEY);
 };
 
 export const signupUser = ({
   name,
   email,
-  password
+  password,
 }: {
   name: string;
   email: string;
@@ -208,15 +204,10 @@ export const signupUser = ({
     id: `user-${Date.now()}`,
     name: name.trim(),
     email: normalizedEmail,
-    role: 'citizen'
+    role: 'citizen',
   };
 
-  const stored: StoredUser = {
-    ...newUser,
-    password
-  };
-
-  users.push(stored);
+  users.push({ ...newUser, password });
   saveStoredUsers(users);
   setCurrentUser(newUser);
 
@@ -225,7 +216,7 @@ export const signupUser = ({
 
 export const loginUser = ({
   email,
-  password
+  password,
 }: {
   email: string;
   password: string;
@@ -241,7 +232,7 @@ export const loginUser = ({
       name: normalizedEmail.split('@')[0] || 'Citizen User',
       email: normalizedEmail,
       role: 'citizen',
-      password
+      password,
     };
     users.push(match);
     saveStoredUsers(users);
@@ -251,7 +242,7 @@ export const loginUser = ({
     id: match.id,
     name: match.name,
     email: match.email,
-    role: match.role
+    role: match.role,
   };
 
   setCurrentUser(sessionUser);

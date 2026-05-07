@@ -95,8 +95,6 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
       setIsSubmitting(false);
     }
   };
-    }, 1500);
-  };
 
   const removeImage = () => {
     setImage(null);
