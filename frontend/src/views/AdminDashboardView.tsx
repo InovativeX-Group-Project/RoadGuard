@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from 'sonner';
-import { getReports, saveReport, getCurrentUser } from '@/store';
+import { getReports, updateReportStatus, getCurrentUser } from '@/store';
 import { Report, ReportStatus, IssueType } from '@/types';
 
 interface AdminDashboardViewProps {
@@ -48,29 +48,28 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    setReports(getReports());
+    const loadReports = async () => {
+      try {
+        const reportsData = await getReports();
+        setReports(reportsData);
+      } catch (error) {
+        console.error('Error loading reports:', error);
+      }
+    };
+    loadReports();
   }, []);
 
-  const handleUpdateStatus = (id: string, newStatus: ReportStatus) => {
-    const report = reports.find(r => r.id === id);
-    if (!report) return;
-
-    const updatedReport: Report = {
-      ...report,
-      status: newStatus,
-      history: [
-        ...report.history,
-        {
-          status: newStatus,
-          timestamp: new Date().toISOString(),
-          updatedBy: 'Municipal Admin'
-        }
-      ]
-    };
-
-    saveReport(updatedReport);
-    setReports(getReports());
-    toast.success(`Report #${id.slice(-6)} updated to ${newStatus}`);
+  const handleUpdateStatus = async (id: string, newStatus: ReportStatus) => {
+    try {
+      await updateReportStatus(id, newStatus);
+      // Reload reports
+      const reportsData = await getReports();
+      setReports(reportsData);
+      toast.success(`Report #${id.slice(-6)} updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update report status');
+    }
   };
 
   const filteredReports = reports.filter(r => {

@@ -21,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { getReports, saveReport, getCurrentUser } from '@/store';
+import { getReport, addReportComment, getCurrentUser } from '@/store';
 import { Report, ReportStatus, Comment } from '@/types';
 
 interface ReportDetailViewProps {
@@ -44,30 +44,31 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
   const [user, setUser] = useState(getCurrentUser());
 
   useEffect(() => {
-    const allReports = getReports();
-    const found = allReports.find(r => r.id === reportId);
-    if (found) setReport(found);
+    const loadReport = async () => {
+      try {
+        const reportData = await getReport(reportId);
+        if (reportData) setReport(reportData);
+      } catch (error) {
+        console.error('Error loading report:', error);
+      }
+    };
+    loadReport();
   }, [reportId]);
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (!commentText.trim() || !report) return;
 
-    const newComment: Comment = {
-      id: `comm-${Date.now()}`,
-      author: user?.role === 'admin' ? 'Municipal Staff' : (user?.name || 'Citizen'),
-      text: commentText,
-      timestamp: new Date().toISOString()
-    };
-
-    const updatedReport = {
-      ...report,
-      comments: [...report.comments, newComment]
-    };
-
-    saveReport(updatedReport);
-    setReport(updatedReport);
-    setCommentText('');
-    toast.success("Comment added");
+    try {
+      await addReportComment(report.id, commentText);
+      // Reload the report to get the updated comments
+      const updatedReport = await getReport(reportId);
+      if (updatedReport) setReport(updatedReport);
+      setCommentText('');
+      toast.success("Comment added");
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Failed to add comment');
+    }
   };
 
   if (!report) return <div className="p-20 text-center">Report not found.</div>;

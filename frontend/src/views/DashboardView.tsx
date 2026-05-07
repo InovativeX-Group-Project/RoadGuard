@@ -43,7 +43,15 @@ export default function DashboardView({ onNewReport, onViewReport }: DashboardVi
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    setReports(getReports());
+    const loadReports = async () => {
+      try {
+        const reportsData = await getReports();
+        setReports(reportsData);
+      } catch (error) {
+        console.error('Error loading reports:', error);
+      }
+    };
+    loadReports();
   }, []);
 
   const filteredReports = reports.filter(r => 

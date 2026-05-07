@@ -1,38 +1,31 @@
 
-import { GoogleGenAI } from "@google/genai";
 import { IssueType } from "./types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const API_BASE_URL = 'http://localhost:5000/api';
 
 export async function detectRoadDamage(base64Image: string): Promise<{
   issueType: IssueType;
   description: string;
 }> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Image.split(',')[1] || base64Image,
-            },
-          },
-          {
-            text: "Analyze this image of a road. Detect if there is any damage like a pothole, crack, or broken traffic light. Return the result in JSON format with 'issueType' (one of: 'Pothole', 'Crack', 'Broken Traffic Light', 'Other') and a brief 'description'.",
-          },
-        ],
+    const token = localStorage.getItem('roadguard_token');
+    const response = await fetch(`${API_BASE_URL}/reports/analyze-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
       },
-      config: {
-        responseMimeType: "application/json"
-      }
+      body: JSON.stringify({ image: base64Image }),
     });
 
-    const result = JSON.parse(response.text || "{}");
+    if (!response.ok) {
+      throw new Error('AI analysis failed');
+    }
+
+    const result = await response.json();
     return {
       issueType: result.issueType || "Other",
-      description: result.description || "Damage detected via AI analysis.",
+      description: result.description || "AI analysis completed.",
     };
   } catch (error) {
     console.error("AI Detection failed:", error);

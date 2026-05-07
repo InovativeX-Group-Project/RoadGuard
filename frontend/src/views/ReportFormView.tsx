@@ -66,7 +66,7 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
       toast.error("Please upload an image of the damage.");
       return;
     }
-    
+
     setIsSubmitting(true);
     const user = getCurrentUser();
     if (!user) {
@@ -74,30 +74,27 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
       toast.error('Please log in before submitting a report.');
       return;
     }
-    
-    const newReport: Report = {
-      id: `rep-${Date.now()}`,
-      userId: user.id,
-      image: image,
-      issueType: detectedIssue?.issueType || 'Other',
-      description: manualDescription,
-      location: location || 'Unknown Location',
-      timestamp: new Date().toISOString(),
-      status: 'Pending',
-      history: [{
-        status: 'Pending',
-        timestamp: new Date().toISOString(),
-        updatedBy: user.name
-      }],
-      comments: []
-    };
 
-    saveReport(newReport);
-    
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const newReport: Omit<Report, 'id' | 'timestamp' | 'status' | 'history' | 'comments'> = {
+        userId: user.id,
+        image: image,
+        issueType: detectedIssue?.issueType || 'Other',
+        description: manualDescription,
+        location: location || 'Unknown Location',
+      };
+
+      await saveReport(newReport as Report);
+
       toast.success("Report submitted successfully! The municipality has been notified.");
       onSuccess();
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      toast.error('Failed to submit report. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
     }, 1500);
   };
 
