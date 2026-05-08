@@ -7,17 +7,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface LoginViewProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => Promise<void>;
   onGoToSignup: () => void;
 }
 
 export default function LoginView({ onLogin, onGoToSignup }: LoginViewProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(email, password);
+    setIsSubmitting(true);
+    try {
+      await onLogin(email, password);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -78,7 +84,7 @@ export default function LoginView({ onLogin, onGoToSignup }: LoginViewProps) {
                     className="h-11"
                   />
                 </div>
-                <Button type="submit" className="w-full h-12 bg-brand-600 hover:bg-brand-700 text-base">
+                <Button type="submit" className="w-full h-12 bg-brand-600 hover:bg-brand-700 text-base" disabled={isSubmitting}>
                   Sign In <ArrowRight className="ml-2" size={16} />
                 </Button>
               </form>

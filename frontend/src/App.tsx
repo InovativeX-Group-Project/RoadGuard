@@ -45,7 +45,7 @@ export default function App() {
       const loggedIn = await loginUser({ email, password });
       setUser(loggedIn);
       setCurrentView(loggedIn.role === 'admin' ? 'admin' : 'dashboard');
-      toast.success(`Welcome back, ${loggedIn.name}`);
+      toast.success(`Login successful. Welcome back, ${loggedIn.name}.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to log in.');
     }
