@@ -71,48 +71,6 @@ export default function DashboardView({ onNewReport, onViewReport }: DashboardVi
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="rounded-3xl border-slate-100 bg-white">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-slate-500 font-medium">Total Reports</span>
-              <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
-                <Filter size={18} className="text-slate-400" />
-              </div>
-            </div>
-            <div className="text-4xl font-bold">{reports.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="rounded-3xl border-slate-100 bg-white">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-slate-500 font-medium">Resolved</span>
-              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-                <CheckCircle2 size={18} className="text-emerald-500" />
-              </div>
-            </div>
-            <div className="text-4xl font-bold text-emerald-600">
-              {reports.filter(r => r.status === 'Resolved').length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-3xl border-slate-100 bg-white">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-slate-500 font-medium">Pending Fix</span>
-              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-                <Clock size={18} className="text-amber-500" />
-              </div>
-            </div>
-            <div className="text-4xl font-bold text-amber-600">
-              {reports.filter(r => r.status === 'Pending' || r.status === 'In Progress').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden p-6">
         <div className="flex flex-col md:row items-center gap-4 mb-8">
           <div className="relative flex-1">

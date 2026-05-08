@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from 'sonner';
-import { getReports, updateReportStatus, getCurrentUser } from '@/store';
+import { getAdminUsers, getReports, updateReportStatus } from '@/store';
 import { Report, ReportStatus, IssueType } from '@/types';
 
 interface AdminDashboardViewProps {
@@ -44,6 +44,7 @@ interface AdminDashboardViewProps {
 
 export default function AdminDashboardView({ onViewReport }: AdminDashboardViewProps) {
   const [reports, setReports] = useState<Report[]>([]);
+  const [adminUsers, setAdminUsers] = useState<{ id: string; name: string }[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -52,6 +53,9 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
       try {
         const reportsData = await getReports();
         setReports(reportsData);
+
+        const admins = await getAdminUsers();
+        setAdminUsers(admins.map((a) => ({ id: a.id, name: a.name })));
       } catch (error) {
         console.error('Error loading reports:', error);
       }
@@ -118,6 +122,25 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
           </Card>
         ))}
       </div>
+
+      <Card className="rounded-3xl border-slate-100 bg-white mb-8">
+        <CardHeader>
+          <CardTitle className="text-lg">Admin Team Full Names</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {adminUsers.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {adminUsers.map((admin) => (
+                <Badge key={admin.id} variant="outline" className="px-3 py-1.5 text-sm rounded-full">
+                  {admin.name}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No admin names available.</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="rounded-[40px] border-slate-100 bg-white shadow-xl overflow-hidden min-h-[600px]">
         <div className="p-8 border-b border-slate-50 flex flex-col lg:row items-center justify-between gap-6">

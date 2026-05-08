@@ -242,3 +242,23 @@ export const loginUser = async ({
   setCurrentUser(data.user);
   return data.user;
 };
+
+export const getAdminUsers = async (): Promise<User[]> => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(`${API_BASE_URL}/users`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => []);
+  if (!response.ok || !Array.isArray(data)) {
+    return [];
+  }
+
+  return data.filter((u) => u.role === 'admin');
+};

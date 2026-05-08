@@ -63,10 +63,14 @@ const createUser = async ({ name, email, passwordHash }) => {
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (role && !['citizen', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role selected' });
     }
 
     const user = await findUserByEmail(email);
@@ -78,6 +82,10 @@ router.post('/login', async (req, res) => {
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({ error: 'Selected account type does not match this user' });
     }
 
     // Create JWT token

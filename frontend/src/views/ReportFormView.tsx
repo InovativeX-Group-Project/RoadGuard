@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Camera, 
   Upload, 
@@ -34,8 +34,42 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
   const [location, setLocation] = useState('');
   const [manualDescription, setManualDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cameraOpen || !videoRef.current || !mediaStreamRef.current) {
+      return;
+    }
+
+    const video = videoRef.current;
+    video.srcObject = mediaStreamRef.current;
+
+    const handleCanPlay = () => setIsCameraReady(true);
+    video.addEventListener('canplay', handleCanPlay);
+
+    video.play().catch(() => {
+      toast.error('Unable to start camera preview. Please check permissions.');
+    });
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+    };
+  }, [cameraOpen]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,6 +92,66 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
     setManualDescription(result.description);
     setIsAnalyzing(false);
     toast.success("AI Analysis complete!");
+  };
+
+  const stopCamera = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setIsCameraReady(false);
+    setCameraOpen(false);
+  };
+
+  const openCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+
+      mediaStreamRef.current = stream;
+      setIsCameraReady(false);
+      setCameraOpen(true);
+    } catch (error) {
+      console.error('Unable to access camera:', error);
+      toast.error('Unable to open camera. Please allow camera access or upload a photo.');
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas) {
+      return;
+    }
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) {
+      toast.error('Camera is not ready yet. Please try again.');
+      return;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      toast.error('Failed to capture photo. Please try again.');
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, width, height);
+    const base64 = canvas.toDataURL('image/jpeg', 0.9);
+    setImage(base64);
+    stopCamera();
+    analyzeImage(base64);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,6 +191,7 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
   };
 
   const removeImage = () => {
+    stopCamera();
     setImage(null);
     setDetectedIssue(null);
     setManualDescription('');
@@ -119,23 +214,62 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
               <div className="space-y-3">
                 <Label className="text-base font-semibold">1. Upload Image</Label>
                 {!image ? (
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-200 rounded-3xl h-[300px] flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-brand-400 hover:bg-brand-50/30 transition-all group"
-                  >
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Camera className="text-slate-400 group-hover:text-brand-500" size={32} />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-semibold text-slate-700">Click or drag to upload photo</p>
-                      <p className="text-sm text-slate-400">JPG, PNG up to 10MB</p>
-                    </div>
+                  <div className="border-2 border-dashed border-slate-200 rounded-3xl h-[300px] flex flex-col items-center justify-center gap-4 hover:border-brand-400 hover:bg-brand-50/30 transition-all group">
+                    {cameraOpen ? (
+                      <>
+                        <video
+                          ref={videoRef}
+                          className="w-full max-w-md h-48 object-cover rounded-2xl bg-black"
+                          autoPlay
+                          playsInline
+                          muted
+                        />
+                        <canvas ref={canvasRef} className="hidden" />
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Button type="button" className="rounded-xl bg-brand-600 hover:bg-brand-700" onClick={capturePhoto} disabled={!isCameraReady}>
+                            <Camera className="mr-2 h-4 w-4" /> Capture Photo
+                          </Button>
+                          <Button type="button" variant="outline" className="rounded-xl" onClick={stopCamera}>
+                            Cancel Camera
+                          </Button>
+                        </div>
+                        {!isCameraReady && (
+                          <p className="text-sm text-slate-500">Starting camera...</p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Camera className="text-slate-400 group-hover:text-brand-500" size={32} />
+                        </div>
+                        <div className="text-center px-4">
+                          <p className="font-semibold text-slate-700">Upload a photo or take one now</p>
+                          <p className="text-sm text-slate-400">JPG, PNG up to 10MB</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Button type="button" variant="outline" className="rounded-xl" onClick={() => fileInputRef.current?.click()}>
+                            <Upload className="mr-2 h-4 w-4" /> Upload Photo
+                          </Button>
+                          <Button type="button" className="rounded-xl bg-brand-600 hover:bg-brand-700" onClick={openCamera}>
+                            <Camera className="mr-2 h-4 w-4" /> Take Photo
+                          </Button>
+                        </div>
+                      </>
+                    )}
                     <input 
                       type="file" 
                       ref={fileInputRef} 
                       className="hidden" 
                       accept="image/*" 
                       onChange={handleImageUpload} 
+                    />
+                    <input
+                      type="file"
+                      ref={cameraInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleImageUpload}
                     />
                   </div>
                 ) : (
