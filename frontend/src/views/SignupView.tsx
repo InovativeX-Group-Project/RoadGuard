@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import LoadingButton from '@/components/LoadingButton';
+import { Button } from '@/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
+import { Input } from '@/ui/input';
+import { Label } from '@/ui/label';
 
 interface SignupViewProps {
-  onSignup: (name: string, email: string, password: string) => void;
+  onSignup: (name: string, email: string, password: string) => Promise<void>;
   onGoToLogin: () => void;
 }
 
@@ -17,8 +18,9 @@ export default function SignupView({ onSignup, onGoToLogin }: SignupViewProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
@@ -32,7 +34,12 @@ export default function SignupView({ onSignup, onGoToLogin }: SignupViewProps) {
     }
 
     setValidationError('');
-    onSignup(name, email, password);
+    setIsSubmitting(true);
+    try {
+      await onSignup(name, email, password);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -113,9 +120,14 @@ export default function SignupView({ onSignup, onGoToLogin }: SignupViewProps) {
                   />
                 </div>
                 {validationError && <p className="text-sm text-red-600">{validationError}</p>}
-                <Button type="submit" className="w-full h-12 bg-brand-600 hover:bg-brand-700 text-base">
+                <LoadingButton 
+                  type="submit" 
+                  className="w-full h-12 bg-brand-600 hover:bg-brand-700 text-base"
+                  isLoading={isSubmitting}
+                  loadingText="Creating account..."
+                >
                   Create Account <ArrowRight className="ml-2" size={16} />
-                </Button>
+                </LoadingButton>
               </form>
               <div className="mt-6 text-sm text-slate-600 flex items-center justify-between gap-3">
                 <span>Already registered?</span>

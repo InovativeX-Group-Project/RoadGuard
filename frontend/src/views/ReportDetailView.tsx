@@ -12,14 +12,15 @@ import {
   Send,
   History,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
+import { Badge } from '@/ui/badge';
+import { Textarea } from '@/ui/textarea';
+import { Label } from '@/ui/label';
+import { Separator } from '@/ui/separator';
 import { toast } from 'sonner';
 import { getReport, addReportComment, getCurrentUser } from '@/store';
 import { Report, ReportStatus, Comment } from '@/types';
@@ -41,6 +42,7 @@ const statusSteps: ReportStatus[] = ['Pending', 'In Progress', 'Resolved'];
 export default function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
   const [report, setReport] = useState<Report | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [user, setUser] = useState(getCurrentUser());
 
   useEffect(() => {
@@ -58,16 +60,19 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
   const handleAddComment = async () => {
     if (!commentText.trim() || !report) return;
 
+    setIsSubmittingComment(true);
     try {
       await addReportComment(report.id, commentText);
       // Reload the report to get the updated comments
       const updatedReport = await getReport(reportId);
       if (updatedReport) setReport(updatedReport);
       setCommentText('');
-      toast.success("Comment added");
+      toast.success("Comment added successfully");
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error('Failed to add comment');
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -195,14 +200,19 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
                   className="rounded-2xl bg-slate-50 border-none min-h-[80px] pr-12 focus-visible:ring-0"
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
+                  disabled={isSubmittingComment}
                 />
                 <Button 
                   size="icon" 
                   className="absolute bottom-2 right-2 rounded-xl bg-brand-600 hover:bg-brand-700 h-8 w-8"
                   onClick={handleAddComment}
-                  disabled={!commentText.trim()}
+                  disabled={!commentText.trim() || isSubmittingComment}
                 >
-                  <Send size={14} />
+                  {isSubmittingComment ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Send size={14} />
+                  )}
                 </Button>
               </div>
             </div>

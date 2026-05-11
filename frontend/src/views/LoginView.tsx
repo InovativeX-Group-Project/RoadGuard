@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, LogIn, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import LoadingButton from '@/components/LoadingButton';
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
+import { Input } from '@/ui/input';
+import { Label } from '@/ui/label';
+import { Button } from '@/ui/button';
 
 interface LoginViewProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -41,9 +42,9 @@ export default function LoginView({ onLogin, onGoToSignup }: LoginViewProps) {
             Sign in to track reports, submit new incidents, and follow municipal updates in real time.
           </p>
           <div className="mt-8 p-4 rounded-2xl border border-white/15 bg-white/5 max-w-md">
-            <p className="text-sm text-brand-100 font-semibold mb-1">Staff demo account</p>
-            <p className="text-sm text-slate-300">Email: staff@roadguard.gov.za</p>
-            <p className="text-sm text-slate-300">Password: admin123</p>
+            <p className="text-sm text-brand-100 font-semibold mb-1">.</p>
+            <p className="text-sm text-slate-300">.</p>
+            <p className="text-sm text-slate-300">.</p>
           </div>
         </motion.div>
 
@@ -84,9 +85,14 @@ export default function LoginView({ onLogin, onGoToSignup }: LoginViewProps) {
                     className="h-11"
                   />
                 </div>
-                <Button type="submit" className="w-full h-12 bg-brand-600 hover:bg-brand-700 text-base" disabled={isSubmitting}>
+                <LoadingButton 
+                  type="submit" 
+                  className="w-full h-12 bg-brand-600 hover:bg-brand-700 text-base" 
+                  isLoading={isSubmitting}
+                  loadingText="Signing in..."
+                >
                   Sign In <ArrowRight className="ml-2" size={16} />
-                </Button>
+                </LoadingButton>
               </form>
               <div className="mt-6 text-sm text-slate-600 flex items-center justify-between gap-3">
                 <span>Need an account?</span>

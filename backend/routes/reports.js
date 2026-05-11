@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { getReports, saveReports } = require('../utils/data');
+const { getReports, saveReports, createReport, getReportById, updateReportStatus, addComment } = require('../utils/data');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { detectRoadDamage } = require('../services/aiService');
 
@@ -43,9 +43,9 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Get all reports (authenticated users only)
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const reports = getReports();
+    const reports = await getReports();
 
     // Filter reports based on user role
     let filteredReports;
@@ -65,10 +65,9 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // Get single report
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const reports = getReports();
-    const report = reports.find(r => r.id === req.params.id);
+    const report = await getReportById(req.params.id);
 
     if (!report) {
       return res.status(404).json({ error: 'Report not found' });
@@ -95,9 +94,6 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
       return res.status(400).json({ error: 'Issue type, description, and location are required' });
     }
 
-    const reports = getReports();
-
-    // Handle image
     let imageUrl = '';
     if (req.file) {
       imageUrl = `/uploads/${req.file.filename}`;
@@ -113,20 +109,12 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
       issueType,
       description,
       location,
-      timestamp: new Date().toISOString(),
-      status: 'Pending',
-      history: [{
-        status: 'Pending',
-        timestamp: new Date().toISOString(),
-        updatedBy: req.user.name || 'User'
-      }],
-      comments: []
+      status: 'Pending'
     };
 
-    reports.unshift(newReport); // Add to beginning
-    saveReports(reports);
+    const createdReport = await createReport(newReport);
 
-    res.status(201).json(newReport);
+    res.status(201).json(createdReport);
   } catch (error) {
     console.error('Error creating report:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -134,7 +122,7 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
 });
 
 // Update report status (admin only)
-router.patch('/:id/status', authenticateToken, requireAdmin, (req, res) => {
+router.patch('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ['Pending', 'In Progress', 'Resolved', 'Rejected'];
@@ -143,26 +131,10 @@ router.patch('/:id/status', authenticateToken, requireAdmin, (req, res) => {
       return res.status(400).json({ error: 'Valid status is required' });
     }
 
-    const reports = getReports();
-    const reportIndex = reports.findIndex(r => r.id === req.params.id);
+    await updateReportStatus(req.params.id, status, req.user.name || 'Admin');
 
-    if (reportIndex === -1) {
-      return res.status(404).json({ error: 'Report not found' });
-    }
-
-    const report = reports[reportIndex];
-
-    // Add to history
-    report.history.push({
-      status,
-      timestamp: new Date().toISOString(),
-      updatedBy: req.user.name || 'Admin'
-    });
-
-    report.status = status;
-    saveReports(reports);
-
-    res.json(report);
+    const updatedReport = await getReportById(req.params.id);
+    res.json(updatedReport);
   } catch (error) {
     console.error('Error updating report status:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -170,7 +142,7 @@ router.patch('/:id/status', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // Add comment to report
-router.post('/:id/comments', authenticateToken, (req, res) => {
+router.post('/:id/comments', authenticateToken, async (req, res) => {
   try {
     const { text } = req.body;
 
@@ -178,14 +150,11 @@ router.post('/:id/comments', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Comment text is required' });
     }
 
-    const reports = getReports();
-    const reportIndex = reports.findIndex(r => r.id === req.params.id);
+    const report = await getReportById(req.params.id);
 
-    if (reportIndex === -1) {
+    if (!report) {
       return res.status(404).json({ error: 'Report not found' });
     }
-
-    const report = reports[reportIndex];
 
     // Check if user can comment on this report
     if (req.user.role !== 'admin' && report.userId !== req.user.id) {
@@ -193,16 +162,13 @@ router.post('/:id/comments', authenticateToken, (req, res) => {
     }
 
     const newComment = {
-      id: uuidv4(),
       author: req.user.name || req.user.email,
-      text: text.trim(),
-      timestamp: new Date().toISOString()
+      text: text.trim()
     };
 
-    report.comments.push(newComment);
-    saveReports(reports);
+    const createdComment = await addComment(req.params.id, newComment);
 
-    res.status(201).json(newComment);
+    res.status(201).json(createdComment);
   } catch (error) {
     console.error('Error adding comment:', error);
     res.status(500).json({ error: 'Internal server error' });

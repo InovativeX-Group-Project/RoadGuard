@@ -16,8 +16,8 @@
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/components/*": [
-        "./components/*"
+      "@/ui/*": [
+        "./components/ui/*"
       ],
       "@/lib/*": [
         "./lib/*"

@@ -9,8 +9,8 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Toaster } from '@/components/ui/sonner';
+import { Button } from '@/ui/button';
+import { Toaster } from '@/ui/sonner';
 import { toast } from 'sonner';
 import { clearCurrentUser, getCurrentUser, loginUser, signupUser } from '@/store';
 import { User } from '@/types';

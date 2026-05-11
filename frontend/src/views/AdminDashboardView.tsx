@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  MapPin, 
-  Search, 
-  Filter, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Users,
+  MapPin,
+  Search,
+  Filter,
+  CheckCircle2,
+  Clock,
   AlertCircle,
   BarChart2,
   MoreVertical,
@@ -15,25 +15,25 @@ import {
   RefreshCcw,
   Flag
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
+import { Button } from '@/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
+import { Badge } from '@/ui/badge';
+import { Input } from '@/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/ui/table';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/ui/select";
 import { toast } from 'sonner';
 import { getAdminUsers, getReports, updateReportStatus } from '@/store';
 import { Report, ReportStatus, IssueType } from '@/types';
@@ -78,8 +78,8 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
 
   const filteredReports = reports.filter(r => {
     const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
-    const matchesSearch = r.location.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          r.issueType.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = r.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.issueType.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -123,32 +123,13 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
         ))}
       </div>
 
-      <Card className="rounded-3xl border-slate-100 bg-white mb-8">
-        <CardHeader>
-          <CardTitle className="text-lg">Admin Team Full Names</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {adminUsers.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {adminUsers.map((admin) => (
-                <Badge key={admin.id} variant="outline" className="px-3 py-1.5 text-sm rounded-full">
-                  {admin.name}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">No admin names available.</p>
-          )}
-        </CardContent>
-      </Card>
-
       <Card className="rounded-[40px] border-slate-100 bg-white shadow-xl overflow-hidden min-h-[600px]">
         <div className="p-8 border-b border-slate-50 flex flex-col lg:row items-center justify-between gap-6">
           <div className="flex items-center gap-4 w-full lg:w-auto">
             <div className="relative flex-1 lg:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <Input 
-                placeholder="Search by area or type..." 
+              <Input
+                placeholder="Search by area or type..."
                 className="pl-10 h-11 rounded-xl bg-slate-50 border-none focus-visible:ring-brand-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -196,9 +177,9 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                       <Badge variant="outline" className="bg-brand-50 text-brand-700 border-brand-100 rounded-lg">
-                         {report.issueType}
-                       </Badge>
+                      <Badge variant="outline" className="bg-brand-50 text-brand-700 border-brand-100 rounded-lg">
+                        {report.issueType}
+                      </Badge>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -207,8 +188,8 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Select 
-                      value={report.status} 
+                    <Select
+                      value={report.status}
                       onValueChange={(val) => handleUpdateStatus(report.id, val as ReportStatus)}
                     >
                       <SelectTrigger className={`h-9 w-32 rounded-lg text-xs font-bold border-none shadow-none focus:ring-0
@@ -232,21 +213,17 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-brand-50 hover:text-brand-600" onClick={() => onViewReport(report.id)}>
-                        <Eye size={18} />
+                        <Eye size={20} />
+                        View
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500">
-                        <Flag size={18} />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
-                        <MoreVertical size={18} />
-                      </Button>
+
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          
+
           {filteredReports.length === 0 && (
             <div className="py-32 text-center">
               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -257,11 +234,9 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
           )}
         </div>
       </Card>
-      
+
       <div className="mt-8 flex justify-center">
-        <Button variant="ghost" className="text-slate-400 hover:text-brand-600 transition-colors">
-          View Full Audit Log <ChevronRight size={16} />
-        </Button>
+
       </div>
     </div>
   );
