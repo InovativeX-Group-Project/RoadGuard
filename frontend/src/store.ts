@@ -52,78 +52,117 @@ const saveStoredUsers = (users: StoredUser[]) => {
 };
 
 export const getReports = async (): Promise<Report[]> => {
-  return readReports();
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(`${API_BASE_URL}/reports`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => []);
+  if (!response.ok || !Array.isArray(data)) {
+    throw new Error('Failed to fetch reports');
+  }
+
+  return data;
 };
 
 export const getReport = async (id: string): Promise<Report | null> => {
-  const reports = readReports();
-  return reports.find((r) => r.id === id) || null;
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    return null;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/reports/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) {
+    throw new Error('Failed to fetch report');
+  }
+
+  return data;
 };
 
 export const saveReport = async (report: Report): Promise<void> => {
-  const reports = readReports();
-  const id = report.id || `rep-${Date.now()}`;
-  const index = reports.findIndex((r) => r.id === id);
-
-  const normalizedReport: Report = {
-    ...report,
-    id,
-    timestamp: report.timestamp || new Date().toISOString(),
-    status: report.status || 'Pending',
-    history: report.history || [
-      {
-        status: 'Pending',
-        timestamp: new Date().toISOString(),
-        updatedBy: getCurrentUser()?.name || 'Citizen',
-      },
-    ],
-    comments: report.comments || [],
-  };
-
-  if (index >= 0) {
-    reports[index] = normalizedReport;
-  } else {
-    reports.unshift(normalizedReport);
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    throw new Error('Authentication required');
   }
 
-  writeReports(reports);
+  const payload = {
+    issueType: report.issueType,
+    description: report.description,
+    location: report.location,
+    image: report.image,
+  };
+
+  const response = await fetch(`${API_BASE_URL}/reports`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to save report (HTTP ${response.status})`);
+  }
 };
 
 export const updateReportStatus = async (reportId: string, status: string): Promise<void> => {
-  const reports = readReports();
-  const report = reports.find((r) => r.id === reportId);
-  if (!report) {
-    return;
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    throw new Error('Authentication required');
   }
 
-  const nextStatus = status as ReportStatus;
-  report.status = nextStatus;
-  report.history.push({
-    status: nextStatus,
-    timestamp: new Date().toISOString(),
-    updatedBy: getCurrentUser()?.role === 'admin' ? 'Municipal Staff' : 'Citizen',
+  const response = await fetch(`${API_BASE_URL}/reports/${reportId}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status: status as ReportStatus }),
   });
 
-  writeReports(reports);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update report status');
+  }
 };
 
 export const addReportComment = async (reportId: string, text: string): Promise<void> => {
-  const reports = readReports();
-  const report = reports.find((r) => r.id === reportId);
-  if (!report) {
-    return;
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    throw new Error('Authentication required');
   }
 
-  const user = getCurrentUser();
-  const comment: Comment = {
-    id: `comm-${Date.now()}`,
-    author: user?.role === 'admin' ? 'Municipal Staff' : (user?.name || 'Citizen'),
-    text,
-    timestamp: new Date().toISOString(),
-  };
+  const response = await fetch(`${API_BASE_URL}/reports/${reportId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ text }),
+  });
 
-  report.comments.push(comment);
-  writeReports(reports);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to add comment');
+  }
 };
 
 export const getCurrentUser = (): User | null => {

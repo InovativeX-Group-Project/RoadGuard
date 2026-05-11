@@ -1,6 +1,51 @@
 
 export type ReportStatus = 'Pending' | 'In Progress' | 'Resolved' | 'Rejected';
-export type IssueType = 'Pothole' | 'Crack' | 'Broken Traffic Light' | 'Other';
+export type IssueType =
+  | 'Pothole'
+  | 'Broken Street Light'
+  | 'Cracked Road'
+  | 'Faded Road Markings'
+  | 'Broken Traffic Light'
+  | 'Damaged Pavement/Sidewalk'
+  | 'Blocked Storm Drain'
+  | 'Water Leak on Road'
+  | 'Sinkhole'
+  | 'Loose Gravel'
+  | 'Fallen Road Sign'
+  | 'Damaged Guardrail'
+  | 'Uneven Road Surface'
+  | 'Flooded Road'
+  | 'Illegal Dumping'
+  | 'Overgrown Bushes'
+  | 'Missing Manhole Cover'
+  | 'Broken Speed Hump'
+  | 'Oil Spill'
+  | 'Exposed Electrical Cables'
+  | 'Other';
+
+export const ISSUE_TYPE_OPTIONS: IssueType[] = [
+  'Pothole',
+  'Broken Street Light',
+  'Cracked Road',
+  'Faded Road Markings',
+  'Broken Traffic Light',
+  'Damaged Pavement/Sidewalk',
+  'Blocked Storm Drain',
+  'Water Leak on Road',
+  'Sinkhole',
+  'Loose Gravel',
+  'Fallen Road Sign',
+  'Damaged Guardrail',
+  'Uneven Road Surface',
+  'Flooded Road',
+  'Illegal Dumping',
+  'Overgrown Bushes',
+  'Missing Manhole Cover',
+  'Broken Speed Hump',
+  'Oil Spill',
+  'Exposed Electrical Cables',
+  'Other',
+];
 
 export interface Report {
   id: string;

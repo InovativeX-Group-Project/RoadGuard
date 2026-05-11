@@ -9,12 +9,6 @@ import {
   Sparkles,
   ChevronLeft,
   CheckCircle2,
-  Clock,
-  Banknote,
-  ShieldAlert,
-  Zap,
-  Wrench,
-  AlertTriangle,
   LocateFixed,
   Loader2
 } from 'lucide-react';
@@ -24,11 +18,10 @@ import { Card, CardContent } from '@/ui/card';
 import { Input } from '@/ui/input';
 import { Textarea } from '@/ui/textarea';
 import { Label } from '@/ui/label';
-import { Badge } from '@/ui/badge';
 import { toast } from 'sonner';
-import { detectRoadDamage, AIAnalysisResult } from '@/aiService';
+import { generateDescriptionFromContext, AIAnalysisResult } from '@/aiService';
 import { saveReport, getCurrentUser } from '@/store';
-import { Report, IssueType } from '@/types';
+import { Report, IssueType, ISSUE_TYPE_OPTIONS } from '@/types';
 
 interface ReportFormViewProps {
   onCancel: () => void;
@@ -37,14 +30,16 @@ interface ReportFormViewProps {
 
 export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewProps) {
   const [image, setImage] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [detectedIssue, setDetectedIssue] = useState<AIAnalysisResult | null>(null);
+  const [selectedIssueType, setSelectedIssueType] = useState<IssueType>('Other');
+  const [useCustomIssueType, setUseCustomIssueType] = useState(false);
+  const [customIssueType, setCustomIssueType] = useState('');
   const [location, setLocation] = useState('');
   const [manualDescription, setManualDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const [showAnalysisResult, setShowAnalysisResult] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,21 +83,41 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
       reader.onloadend = async () => {
         const base64 = reader.result as string;
         setImage(base64);
-        analyzeImage(base64);
+        setDetectedIssue(null);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const analyzeImage = async (base64: string) => {
-    setIsAnalyzing(true);
-    toast.info("AI is analyzing the image for road damage...");
-    const result = await detectRoadDamage(base64);
-    setDetectedIssue(result);
-    setManualDescription(result.fullDescription || result.description);
-    setShowAnalysisResult(true);
-    setIsAnalyzing(false);
-    toast.success("AI Analysis complete!");
+  const handleGenerateDescription = async () => {
+    const issueTypeForAI = useCustomIssueType ? customIssueType.trim() : selectedIssueType;
+
+    if (!issueTypeForAI) {
+      toast.error('Please select an issue type first.');
+      return;
+    }
+
+    if (!location.trim()) {
+      toast.error('Please enter a location first.');
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    toast.info('Generating AI description from issue type and location...');
+    try {
+      const result = await generateDescriptionFromContext(issueTypeForAI, location);
+      const generatedDescription = result.fullDescription || result.description || '';
+      const finalDescription = useCustomIssueType
+        ? `Reported issue type (user specified): ${issueTypeForAI}. ${generatedDescription}`
+        : generatedDescription;
+
+      setDetectedIssue(result);
+      setSelectedIssueType(result.issueType || selectedIssueType);
+      setManualDescription(finalDescription);
+      toast.success('AI description generated.');
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
 
   const stopCamera = () => {
@@ -162,13 +177,32 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
     const base64 = canvas.toDataURL('image/jpeg', 0.9);
     setImage(base64);
     stopCamera();
-    analyzeImage(base64);
+    setDetectedIssue(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!image) {
       toast.error("Please upload an image of the damage.");
+      return;
+    }
+
+    const customIssueLabel = customIssueType.trim();
+    const locationValue = location.trim();
+    const descriptionValue = manualDescription.trim();
+
+    if (!locationValue) {
+      toast.error('Please provide the report location.');
+      return;
+    }
+
+    if (useCustomIssueType && !customIssueLabel) {
+      toast.error('Please type a custom issue type.');
+      return;
+    }
+
+    if (!descriptionValue) {
+      toast.error('Please generate or enter a problem description before submitting.');
       return;
     }
 
@@ -181,12 +215,17 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
     }
 
     try {
+      const issueTypeForSave: IssueType = useCustomIssueType ? 'Other' : selectedIssueType;
+      const descriptionForSave = useCustomIssueType && customIssueLabel
+        ? `Reported issue type (user specified): ${customIssueLabel}. ${descriptionValue}`
+        : descriptionValue;
+
       const newReport: Omit<Report, 'id' | 'timestamp' | 'status' | 'history' | 'comments'> = {
         userId: user.id,
         image: image,
-        issueType: detectedIssue?.issueType || 'Other',
-        description: manualDescription,
-        location: location || 'Unknown Location',
+        issueType: issueTypeForSave,
+        description: descriptionForSave,
+        location: locationValue,
       };
 
       await saveReport(newReport as Report);
@@ -195,7 +234,8 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
       onSuccess();
     } catch (error) {
       console.error('Error submitting report:', error);
-      toast.error('Failed to submit report. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to submit report. Please try again.';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -248,8 +288,10 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
     stopCamera();
     setImage(null);
     setDetectedIssue(null);
+    setSelectedIssueType('Other');
+    setUseCustomIssueType(false);
+    setCustomIssueType('');
     setManualDescription('');
-    setShowAnalysisResult(false);
   };
 
   return (
@@ -335,166 +377,13 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
                       size="icon"
                       className="absolute top-4 right-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={removeImage}
-                      disabled={isAnalyzing || isSubmitting}
+                      disabled={isSubmitting}
                     >
                       <X size={18} />
                     </Button>
-                    {isAnalyzing && (
-                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-3">
-                        <div className="relative w-12 h-12">
-                          <div className="absolute inset-0 bg-brand-400 rounded-full animate-pulse" />
-                          <div className="absolute inset-2 bg-brand-500 rounded-full" />
-                          <Sparkles className="absolute inset-3 text-white animate-spin" />
-                        </div>
-                        <p className="font-semibold text-lg">AI Analyzing...</p>
-                        <p className="text-xs text-brand-200">Detecting road conditions</p>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
-
-              {/* Analyze Button */}
-              {image && !detectedIssue && !isAnalyzing && (
-                <Button
-                  type="button"
-                  className="w-full h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold flex items-center justify-center gap-2"
-                  onClick={() => {
-                    setShowAnalysisResult(true);
-                    analyzeImage(image);
-                  }}
-                  disabled={isAnalyzing || isSubmitting}
-                >
-                  <Sparkles size={18} />
-                  Analyze with AI
-                </Button>
-              )}
-
-              {/* ── AI Analysis Report ── */}
-              {detectedIssue && !isAnalyzing && showAnalysisResult && (
-                <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-
-                  {/* ① Header */}
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2 text-brand-700">
-                      <Sparkles size={16} className="text-brand-500" />
-                      <span className="font-bold text-xs uppercase tracking-widest">AI Road Assessment</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {detectedIssue.severity && (
-                        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${detectedIssue.severity === 'Critical' ? 'bg-red-100 text-red-700' :
-                          detectedIssue.severity === 'High' ? 'bg-orange-100 text-orange-700' :
-                            detectedIssue.severity === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                              'bg-emerald-100 text-emerald-700'
-                          }`}>
-                          {detectedIssue.severity} Severity
-                        </span>
-                      )}
-                      <Badge className="bg-brand-600 text-white border-0 py-1 px-3 rounded-full text-xs font-semibold">
-                        {detectedIssue.issueType}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* ② Full Description */}
-                  <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Problem Description</p>
-                    <p className="text-slate-700 text-sm leading-relaxed">
-                      {detectedIssue.fullDescription || detectedIssue.description}
-                    </p>
-                  </div>
-
-                  {/* ③ Stats grid: time, cost, urgency */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        <Clock size={14} />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider">Est. Repair Time</span>
-                      </div>
-                      <p className="text-sm font-bold text-slate-800">{detectedIssue.estimatedTime || '—'}</p>
-                    </div>
-
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        <Banknote size={14} />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider">Est. Cost (ZAR)</span>
-                      </div>
-                      <p className="text-sm font-bold text-slate-800">{detectedIssue.estimatedCostZAR || '—'}</p>
-                    </div>
-
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        <Zap size={14} />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider">Urgency</span>
-                      </div>
-                      <p className={`text-sm font-bold ${detectedIssue.urgency === 'Emergency' ? 'text-red-600' :
-                        detectedIssue.urgency === 'Urgent' ? 'text-orange-600' :
-                          detectedIssue.urgency === 'Moderate' ? 'text-amber-600' :
-                            'text-emerald-600'
-                        }`}>{detectedIssue.urgency || '—'}</p>
-                    </div>
-                  </div>
-
-                  {/* ④ Recommended Action */}
-                  {detectedIssue.recommendedAction && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex gap-3">
-                      <Wrench size={16} className="text-blue-500 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Recommended Municipal Action</p>
-                        <p className="text-xs text-blue-800 leading-relaxed">{detectedIssue.recommendedAction}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ⑤ Confidence bars */}
-                  {detectedIssue.rawLabels && detectedIssue.rawLabels.length > 0 && (
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">AI Detection Confidence</p>
-                      <div className="space-y-2.5">
-                        {detectedIssue.rawLabels.slice(0, 6).map((label, i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            <span className="text-xs text-slate-600 w-32 truncate font-medium capitalize flex items-center gap-1">
-                              {label.name}
-                              {label.isObject && (
-                                <span className="text-[9px] bg-indigo-100 text-indigo-600 px-1 py-0.5 rounded-full font-bold">OBJ</span>
-                              )}
-                            </span>
-                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-700"
-                                style={{ width: `${label.confidence}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-bold text-brand-700 w-9 text-right tabular-nums">
-                              {label.confidence}%
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ⑥ Disclaimer */}
-                  {detectedIssue.disclaimer && (
-                    <div className="flex gap-2 items-start px-1">
-                      <AlertTriangle size={12} className="text-slate-400 mt-0.5 shrink-0" />
-                      <p className="text-[10px] text-slate-400 leading-relaxed">{detectedIssue.disclaimer}</p>
-                    </div>
-                  )}
-
-                  {/* ⑦ Re-analyze */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full rounded-xl text-brand-600 border-brand-200 hover:bg-brand-50 font-semibold flex items-center justify-center gap-2"
-                    onClick={() => analyzeImage(image!)}
-                    disabled={isAnalyzing || isSubmitting}
-                  >
-                    <Sparkles size={15} />
-                    Re-analyze Image
-                  </Button>
-                </div>
-              )}
 
               {/* Form Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -534,22 +423,54 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
                   <select
                     id="type"
                     className="w-full h-14 rounded-2xl bg-slate-50 border border-slate-100 px-4 focus-visible:ring-brand-500 outline-none text-sm appearance-none"
-                    value={detectedIssue?.issueType || 'Other'}
-                    onChange={(e) => setDetectedIssue({ ...detectedIssue!, issueType: e.target.value as IssueType })}
+                    value={useCustomIssueType ? '__custom__' : selectedIssueType}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '__custom__') {
+                        setUseCustomIssueType(true);
+                        setSelectedIssueType('Other');
+                        return;
+                      }
+
+                      const typedValue = value as IssueType;
+                      setUseCustomIssueType(false);
+                      setSelectedIssueType(typedValue);
+                      if (detectedIssue) {
+                        setDetectedIssue({ ...detectedIssue, issueType: typedValue });
+                      }
+                    }}
                   >
-                    <option value="Pothole">Pothole</option>
-                    <option value="Crack">Surface Crack</option>
-                    <option value="Broken Traffic Light">Broken Traffic Light</option>
-                    <option value="Other">Other Obstruction</option>
+                    {ISSUE_TYPE_OPTIONS.map((issueType) => (
+                      <option key={issueType} value={issueType}>{issueType}</option>
+                    ))}
+                    <option value="__custom__">Other (Type Manually)</option>
                   </select>
+                  {useCustomIssueType && (
+                    <Input
+                      className="h-12 rounded-2xl bg-slate-50 border-slate-100 focus-visible:ring-brand-500"
+                      placeholder="Type custom issue type"
+                      value={customIssueType}
+                      onChange={(e) => setCustomIssueType(e.target.value)}
+                    />
+                  )}
                 </div>
               </div>
 
+              <Button
+                type="button"
+                className="w-full h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold flex items-center justify-center gap-2"
+                onClick={handleGenerateDescription}
+                disabled={isGeneratingDescription || isSubmitting}
+              >
+                <Sparkles size={18} />
+                {isGeneratingDescription ? 'Generating Description...' : 'Generate AI Description From Location + Issue Type'}
+              </Button>
+
               <div className="space-y-3">
-                <Label htmlFor="description" className="text-base font-semibold">4. Additional Details (Optional)</Label>
+                <Label htmlFor="description" className="text-base font-semibold">4. Problem Description</Label>
                 <Textarea
                   id="description"
-                  placeholder="Describe the issue size, impact on traffic, or any other details..."
+                  placeholder="AI will generate a professional municipality-ready summary. You can refine it here if needed."
                   className="min-h-[120px] rounded-2xl bg-slate-50 border-slate-100 focus-visible:ring-brand-500 p-4"
                   value={manualDescription}
                   onChange={(e) => setManualDescription(e.target.value)}
@@ -572,7 +493,7 @@ export default function ReportFormView({ onCancel, onSuccess }: ReportFormViewPr
           <LoadingButton
             type="submit"
             className="flex-[2] h-14 rounded-2xl text-lg font-semibold bg-brand-600 hover:bg-brand-700 shadow-xl"
-            disabled={!image || isAnalyzing}
+            disabled={!image || isGeneratingDescription}
             isLoading={isSubmitting}
             loadingText="Submitting..."
           >

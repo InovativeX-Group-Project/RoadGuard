@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS reports (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  image VARCHAR(500),
+  image TEXT,
   issue_type VARCHAR(100) NOT NULL,
   description TEXT NOT NULL,
   location VARCHAR(255) NOT NULL,

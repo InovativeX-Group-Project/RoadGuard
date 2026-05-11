@@ -24,7 +24,7 @@ const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS reports (
         id UUID PRIMARY KEY,
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        image VARCHAR(500),
+        image TEXT,
         issue_type VARCHAR(100) NOT NULL,
         description TEXT NOT NULL,
         location VARCHAR(255) NOT NULL,
@@ -34,6 +34,28 @@ const initDatabase = async () => {
       )
     `);
     console.log('✅ Reports table created');
+
+    // Migrate existing deployments that still have VARCHAR image columns.
+    await query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'reports' AND column_name = 'image'
+        ) THEN
+          EXECUTE 'ALTER TABLE reports ALTER COLUMN image TYPE TEXT';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'reports' AND column_name = 'image_url'
+        ) THEN
+          EXECUTE 'ALTER TABLE reports ALTER COLUMN image_url TYPE TEXT';
+        END IF;
+      END
+      $$;
+    `);
+    console.log('✅ Reports image column migration checked');
 
     // Create report history table
     await query(`
