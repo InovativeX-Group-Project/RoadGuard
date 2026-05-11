@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/ui/button';
 import { Card, CardContent } from '@/ui/card';
+import homeImage from '@/images/homeImage.jpg';
 
 interface LandingViewProps {
   onReportClick: () => void;
@@ -23,46 +24,85 @@ export default function LandingView({ onReportClick }: LandingViewProps) {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative py-20 md:py-32 overflow-hidden bg-slate-50">
+      <section className="relative py-16 md:py-24 overflow-hidden bg-slate-50">
         <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div className="max-w-3xl">
+              <motion.h1 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="text-4xl md:text-6xl font-black tracking-tight text-slate-900 mb-6 leading-[1.02]"
+              >
+                RoadGuard SA
+              </motion.h1>
+
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="inline-flex items-center gap-2 px-3 py-1 bg-brand-100 text-brand-700 rounded-full text-sm font-semibold mb-5 border border-brand-200"
+              >
+                <Zap size={14} /> AI-Powered Civic Reporting
+              </motion.div>
+
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="text-4xl md:text-6xl font-bold tracking-tight text-slate-900 mb-6 leading-[1.06]"
+              >
+                Building Better Roads
+                <br />
+                With Smart Technology
+              </motion.h2>
+
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl leading-relaxed"
+              >
+                Report potholes, cracks, and broken traffic lights in seconds. RoadGuard SA uses AI to analyze and prioritize repairs for a safer South Africa.
+              </motion.p>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="flex flex-col sm:row gap-4"
+              >
+                <Button size="lg" className="bg-brand-600 hover:bg-brand-700 text-lg h-14 px-8 rounded-2xl group shadow-lg" onClick={onReportClick}>
+                  Report Road Issue <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+                <Button size="lg" variant="outline" className="h-14 px-8 rounded-2xl border-2 bg-white">
+                  How it Works
+                </Button>
+              </motion.div>
+            </div>
+
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              className="inline-flex items-center gap-2 px-3 py-1 bg-brand-100 text-brand-700 rounded-full text-sm font-semibold mb-6 border border-brand-200"
-            >
-              <Zap size={14} /> AI-Powered Civic Reporting
-            </motion.div>
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-5xl md:text-7xl font-bold tracking-tight text-slate-900 mb-6 leading-[1.1]"
-            >
-              Building Better Roads <br />
-              With <span className="text-brand-600">Smart Technology</span>
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-xl text-slate-600 mb-10 max-w-2xl leading-relaxed"
-            >
-              Report potholes, cracks, and broken traffic lights in seconds. RoadGuard SA uses AI to analyze and prioritize repairs for a safer South Africa.
-            </motion.p>
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="flex flex-col sm:row gap-4"
+              className="relative w-full max-w-xl mx-auto"
             >
-              <Button size="lg" className="bg-brand-600 hover:bg-brand-700 text-lg h-14 px-8 rounded-2xl group shadow-lg" onClick={onReportClick}>
-                Report Road Issue <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button size="lg" variant="outline" className="h-14 px-8 rounded-2xl border-2">
-                How it Works
-              </Button>
+              <div className="hero-clip-glow" />
+              <div className="hero-clip-frame">
+                <img
+                  src={homeImage}
+                  alt="Road maintenance and urban street infrastructure"
+                  className="hero-clip-image"
+                />
+              </div>
+              <div className="hero-floating-card top-5 -left-2 md:-left-8">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                AI Scan Ready
+              </div>
+              <div className="hero-floating-card bottom-4 right-0 md:-right-6">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand-600" />
+                Priority Routing Active
+              </div>
             </motion.div>
           </div>
         </div>
