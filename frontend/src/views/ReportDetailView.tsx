@@ -41,17 +41,21 @@ const statusSteps: ReportStatus[] = ['Pending', 'In Progress', 'Resolved'];
 
 export default function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
   const [report, setReport] = useState<Report | null>(null);
+  const [isLoadingReport, setIsLoadingReport] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [user] = useState(getCurrentUser());
 
   useEffect(() => {
     const loadReport = async () => {
+      setIsLoadingReport(true);
       try {
         const reportData = await getReport(reportId);
-        if (reportData) setReport(reportData);
+        setReport(reportData);
       } catch (error) {
         console.error('Error loading report:', error);
+      } finally {
+        setIsLoadingReport(false);
       }
     };
 
@@ -93,7 +97,19 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
     }
   };
 
-  if (!report) return <div className="p-20 text-center">Report not found.</div>;
+  if (isLoadingReport) {
+    return (
+      <div className="p-20 text-center">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4" />
+        <h3 className="text-xl font-bold mb-2">Loading report...</h3>
+        <p className="text-slate-500">Fetching report details from the database.</p>
+      </div>
+    );
+  }
+
+  if (!report) {
+    return <div className="p-20 text-center">Report not found.</div>;
+  }
 
   const currentStatusIndex = statusSteps.indexOf(report.status);
   const canComment = Boolean(user && (user.role === 'admin' || report.userId === user.id));
