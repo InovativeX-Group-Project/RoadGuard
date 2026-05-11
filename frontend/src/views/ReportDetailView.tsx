@@ -27,6 +27,7 @@ import { Report, ReportStatus } from '@/types';
 
 interface ReportDetailViewProps {
   reportId: string;
+  initialReport?: Report | null;
   onBack: () => void;
 }
 
@@ -39,31 +40,38 @@ const statusColors: Record<ReportStatus, string> = {
 
 const statusSteps: ReportStatus[] = ['Pending', 'In Progress', 'Resolved'];
 
-export default function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
-  const [report, setReport] = useState<Report | null>(null);
-  const [isLoadingReport, setIsLoadingReport] = useState(true);
+export default function ReportDetailView({ reportId, initialReport, onBack }: ReportDetailViewProps) {
+  const [report, setReport] = useState<Report | null>(initialReport ?? null);
+  const [isLoadingReport, setIsLoadingReport] = useState(!initialReport);
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [user] = useState(getCurrentUser());
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadReport = async () => {
-      setIsLoadingReport(true);
+      setIsLoadingReport(!initialReport);
       try {
         const reportData = await getReport(reportId);
-        setReport(reportData);
+        if (isMounted && reportData) {
+          setReport(reportData);
+        }
       } catch (error) {
         console.error('Error loading report:', error);
       } finally {
-        setIsLoadingReport(false);
+        if (isMounted) {
+          setIsLoadingReport(false);
+        }
       }
     };
 
     loadReport();
 
-    const intervalId = window.setInterval(loadReport, 10000);
-    return () => window.clearInterval(intervalId);
-  }, [reportId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [reportId, initialReport]);
 
   useEffect(() => {
     if (!report || !user) {
@@ -107,7 +115,7 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
     );
   }
 
-  if (!report) {
+  if (!report || !report.id) {
     return <div className="p-20 text-center">Report not found.</div>;
   }
 

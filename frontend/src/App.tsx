@@ -13,7 +13,7 @@ import { Button } from '@/ui/button';
 import { Toaster } from '@/ui/sonner';
 import { toast } from 'sonner';
 import { clearCurrentUser, getCurrentUser, loginUser, signupUser } from '@/store';
-import { User } from '@/types';
+import { User, Report } from '@/types';
 
 // Views
 import LandingView from '@/views/LandingView';
@@ -29,7 +29,7 @@ type ViewState = 'landing' | 'login' | 'signup' | 'dashboard' | 'report-form' | 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('landing');
   const [user, setUser] = useState<User | null>(null);
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -69,8 +69,8 @@ export default function App() {
     toast.info("Logged out successfully");
   };
 
-  const navigateToDetail = (reportId: string) => {
-    setSelectedReportId(reportId);
+  const navigateToDetail = (report: Report) => {
+    setSelectedReport(report);
     setCurrentView('report-detail');
   };
 
@@ -202,10 +202,14 @@ export default function App() {
                 onSuccess={() => setCurrentView('dashboard')}
               />
             )}
-            {currentView === 'report-detail' && selectedReportId && (
+            {currentView === 'report-detail' && selectedReport && (
               <ReportDetailView 
-                reportId={selectedReportId} 
-                onBack={() => setCurrentView(user?.role === 'admin' ? 'admin' : 'dashboard')}
+                reportId={selectedReport.id}
+                initialReport={selectedReport}
+                onBack={() => {
+                  setCurrentView(user?.role === 'admin' ? 'admin' : 'dashboard');
+                  setSelectedReport(null);
+                }}
               />
             )}
             {currentView === 'admin' && user?.role === 'admin' && (

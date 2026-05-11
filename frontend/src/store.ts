@@ -4,7 +4,7 @@ const REPORTS_KEY = 'roadguard_reports';
 const USER_KEY = 'roadguard_user';
 const USERS_KEY = 'roadguard_users';
 const TOKEN_KEY = 'roadguard_token';
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || 'http://localhost:5000/api';
 const LAST_SEEN_COMMENT_TS_KEY_PREFIX = 'roadguard_last_seen_comment_ts';
 
 interface StoredUser extends User {
@@ -79,8 +79,9 @@ export const getUnreadIncomingCommentsCount = (
   const currentUserName = normalizeName(user.name);
   const lastSeen = getLastSeenCommentTimestamp(user.id, report.id);
   const lastSeenMs = lastSeen ? new Date(lastSeen).getTime() : 0;
+  const comments = Array.isArray(report.comments) ? report.comments : [];
 
-  return report.comments.filter((comment) => {
+  return comments.filter((comment) => {
     const commentMs = new Date(comment.timestamp).getTime();
     if (Number.isNaN(commentMs) || commentMs <= lastSeenMs) {
       return false;

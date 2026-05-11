@@ -40,7 +40,7 @@ import { getAdminUsers, getCurrentUser, getReports, getUnreadIncomingCommentsCou
 import { Report, ReportStatus, IssueType } from '@/types';
 
 interface AdminDashboardViewProps {
-  onViewReport: (id: string) => void;
+  onViewReport: (report: Report) => void;
 }
 
 export default function AdminDashboardView({ onViewReport }: AdminDashboardViewProps) {
@@ -67,9 +67,6 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
     };
 
     loadReports();
-
-    const intervalId = window.setInterval(loadReports, 15000);
-    return () => window.clearInterval(intervalId);
   }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: ReportStatus) => {
@@ -207,7 +204,7 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
             </Select>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-400 font-medium bg-slate-50 px-4 py-2 rounded-full">
-            <RefreshCcw size={14} className="animate-spin-slow" /> Real-time Feed Active
+            <RefreshCcw size={14} className="" /> Data refresh on demand
           </div>
         </div>
 
@@ -282,7 +279,7 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-brand-50 hover:text-brand-600" onClick={() => onViewReport(report.id)}>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-brand-50 hover:text-brand-600" onClick={() => onViewReport(report)}>
                         <Eye size={20} />
                         View
                       </Button>

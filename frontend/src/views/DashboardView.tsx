@@ -22,7 +22,7 @@ import { Report, ReportStatus } from '@/types';
 
 interface DashboardViewProps {
   onNewReport: () => void;
-  onViewReport: (id: string) => void;
+  onViewReport: (report: Report) => void;
 }
 
 const statusColors: Record<ReportStatus, string> = {
@@ -59,9 +59,6 @@ export default function DashboardView({ onNewReport, onViewReport }: DashboardVi
     };
 
     loadReports();
-
-    const intervalId = window.setInterval(loadReports, 15000);
-    return () => window.clearInterval(intervalId);
   }, []);
 
   const scopedReports = reportScope === 'mine' && user
@@ -146,7 +143,7 @@ export default function DashboardView({ onNewReport, onViewReport }: DashboardVi
                 <Card 
                   key={report.id} 
                   className="group hover:border-brand-300 transition-all cursor-pointer rounded-2xl overflow-hidden"
-                  onClick={() => onViewReport(report.id)}
+                  onClick={() => onViewReport(report)}
                 >
                 <div className="aspect-video w-full bg-slate-100 relative overflow-hidden">
                   <img 
