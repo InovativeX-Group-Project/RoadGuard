@@ -22,8 +22,8 @@ import { Textarea } from '@/ui/textarea';
 import { Label } from '@/ui/label';
 import { Separator } from '@/ui/separator';
 import { toast } from 'sonner';
-import { getReport, addReportComment, getCurrentUser } from '@/store';
-import { Report, ReportStatus, Comment } from '@/types';
+import { getReport, addReportComment, getCurrentUser, getUnreadIncomingCommentsCount, markReportCommentsSeen } from '@/store';
+import { Report, ReportStatus } from '@/types';
 
 interface ReportDetailViewProps {
   reportId: string;
@@ -43,7 +43,7 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
   const [report, setReport] = useState<Report | null>(null);
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  const [user, setUser] = useState(getCurrentUser());
+  const [user] = useState(getCurrentUser());
 
   useEffect(() => {
     const loadReport = async () => {
@@ -54,8 +54,25 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
         console.error('Error loading report:', error);
       }
     };
+
     loadReport();
+
+    const intervalId = window.setInterval(loadReport, 10000);
+    return () => window.clearInterval(intervalId);
   }, [reportId]);
+
+  useEffect(() => {
+    if (!report || !user) {
+      return;
+    }
+
+    const unreadIncoming = getUnreadIncomingCommentsCount(user, report);
+    if (unreadIncoming > 0) {
+      toast.info(`You have ${unreadIncoming} new message${unreadIncoming > 1 ? 's' : ''} on this report.`);
+    }
+
+    markReportCommentsSeen(user.id, report.id, report.comments);
+  }, [report, user]);
 
   const handleAddComment = async () => {
     if (!commentText.trim() || !report) return;
@@ -79,6 +96,7 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
   if (!report) return <div className="p-20 text-center">Report not found.</div>;
 
   const currentStatusIndex = statusSteps.indexOf(report.status);
+  const canComment = Boolean(user && (user.role === 'admin' || report.userId === user.id));
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl">
@@ -194,19 +212,24 @@ export default function ReportDetailView({ reportId, onBack }: ReportDetailViewP
             </CardContent>
             <Separator className="bg-slate-100" />
             <div className="p-6 bg-white rounded-b-[32px]">
+              {!canComment && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
+                  You can only comment on reports that you submitted.
+                </p>
+              )}
               <div className="relative">
                 <Textarea 
-                  placeholder="Ask a question or provide more info..." 
+                  placeholder={canComment ? "Ask a question or provide more info..." : "Comments are disabled for this report."}
                   className="rounded-2xl bg-slate-50 border-none min-h-[80px] pr-12 focus-visible:ring-0"
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  disabled={isSubmittingComment}
+                  disabled={isSubmittingComment || !canComment}
                 />
                 <Button 
                   size="icon" 
                   className="absolute bottom-2 right-2 rounded-xl bg-brand-600 hover:bg-brand-700 h-8 w-8"
                   onClick={handleAddComment}
-                  disabled={!commentText.trim() || isSubmittingComment}
+                  disabled={!commentText.trim() || isSubmittingComment || !canComment}
                 >
                   {isSubmittingComment ? (
                     <Loader2 size={14} className="animate-spin" />

@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Eye,
   RefreshCcw,
-  Flag
+  Flag,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
@@ -35,7 +36,7 @@ import {
   SelectValue,
 } from "@/ui/select";
 import { toast } from 'sonner';
-import { getAdminUsers, getReports, updateReportStatus } from '@/store';
+import { getAdminUsers, getCurrentUser, getReports, getUnreadIncomingCommentsCount, updateReportStatus } from '@/store';
 import { Report, ReportStatus, IssueType } from '@/types';
 
 interface AdminDashboardViewProps {
@@ -47,6 +48,8 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
   const [adminUsers, setAdminUsers] = useState<{ id: string; name: string }[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [user] = useState(getCurrentUser());
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   useEffect(() => {
     const loadReports = async () => {
@@ -58,9 +61,15 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
         setAdminUsers(admins.map((a) => ({ id: a.id, name: a.name })));
       } catch (error) {
         console.error('Error loading reports:', error);
+      } finally {
+        setIsInitialLoading(false);
       }
     };
+
     loadReports();
+
+    const intervalId = window.setInterval(loadReports, 15000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: ReportStatus) => {
@@ -83,6 +92,56 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
     return matchesStatus && matchesSearch;
   });
 
+  const today = new Date();
+  const isSameDay = (value: string) => {
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime()) && parsed.toDateString() === today.toDateString();
+  };
+
+  const activeRequests = reports.filter(
+    (r) => r.status === 'Pending' || r.status === 'In Progress'
+  ).length;
+
+  const resolvedToday = reports.filter((report) => {
+    if (report.status !== 'Resolved') {
+      return false;
+    }
+
+    const resolvedEvent = [...(report.history ?? [])]
+      .reverse()
+      .find((entry) => entry.status === 'Resolved');
+
+    return isSameDay(resolvedEvent?.timestamp ?? report.timestamp);
+  }).length;
+
+  const resolvedDurationsInDays = reports
+    .map((report) => {
+      if (report.status !== 'Resolved') {
+        return null;
+      }
+
+      const resolvedEvent = [...(report.history ?? [])]
+        .reverse()
+        .find((entry) => entry.status === 'Resolved');
+
+      const openedAt = new Date(report.timestamp).getTime();
+      const resolvedAt = new Date(resolvedEvent?.timestamp ?? report.timestamp).getTime();
+      if (Number.isNaN(openedAt) || Number.isNaN(resolvedAt) || resolvedAt < openedAt) {
+        return null;
+      }
+
+      return (resolvedAt - openedAt) / (1000 * 60 * 60 * 24);
+    })
+    .filter((days): days is number => days !== null);
+
+  const avgFixTime = resolvedDurationsInDays.length > 0
+    ? `${(resolvedDurationsInDays.reduce((sum, days) => sum + days, 0) / resolvedDurationsInDays.length).toFixed(1)}d`
+    : 'N/A';
+
+  const citizenSatisfaction = reports.length > 0
+    ? `${Math.round((reports.filter((r) => r.status === 'Resolved').length / reports.length) * 100)}%`
+    : 'N/A';
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mb-12 flex flex-col md:row justify-between items-start md:items-center gap-6">
@@ -102,10 +161,10 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         {[
-          { label: "Active Requests", value: reports.filter(r => r.status !== 'Resolved').length, icon: <AlertCircle className="text-amber-500" />, bg: "bg-amber-50" },
-          { label: "Resolved Today", value: "8", icon: <CheckCircle2 className="text-emerald-500" />, bg: "bg-emerald-50" },
-          { label: "Avg Fix Time", value: "2.4d", icon: <Clock className="text-blue-500" />, bg: "bg-blue-50" },
-          { label: "Citizen Satisfaction", value: "94%", icon: <Users className="text-brand-500" />, bg: "bg-brand-50" }
+          { label: "Active Requests", value: activeRequests, icon: <AlertCircle className="text-amber-500" />, bg: "bg-amber-50" },
+          { label: "Resolved Today", value: resolvedToday, icon: <CheckCircle2 className="text-emerald-500" />, bg: "bg-emerald-50" },
+          { label: "Avg Fix Time", value: avgFixTime, icon: <Clock className="text-blue-500" />, bg: "bg-blue-50" },
+          { label: "Citizen Satisfaction", value: citizenSatisfaction, icon: <Users className="text-brand-500" />, bg: "bg-brand-50" }
         ].map((stat, i) => (
           <Card key={i} className="rounded-3xl border-slate-100 bg-white">
             <CardContent className="pt-6">
@@ -165,14 +224,25 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredReports.map((report) => (
-                <TableRow key={report.id} className="group hover:bg-slate-50 border-slate-50 transition-colors">
+              {filteredReports.map((report) => {
+                const unreadIncoming = getUnreadIncomingCommentsCount(user, report);
+
+                return (
+                  <TableRow key={report.id} className="group hover:bg-slate-50 border-slate-50 transition-colors">
                   <TableCell className="py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
                         <img src={report.image} className="w-full h-full object-cover" />
                       </div>
-                      <span className="font-bold text-sm text-brand-600">#{report.id.slice(-6)}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-sm text-brand-600">#{report.id.slice(-6)}</span>
+                        {unreadIncoming > 0 && (
+                          <Badge className="w-fit bg-red-100 text-red-700 border border-red-200 rounded-full text-[10px] px-2 py-0.5">
+                            <MessageSquare size={10} className="mr-1" />
+                            New ({unreadIncoming})
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -219,12 +289,21 @@ export default function AdminDashboardView({ onViewReport }: AdminDashboardViewP
 
                     </div>
                   </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
 
-          {filteredReports.length === 0 && (
+          {isInitialLoading && (
+            <div className="py-24 text-center">
+              <div className="w-12 h-12 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2">Loading infrastructure reports...</h3>
+              <p className="text-slate-500 font-medium">Fetching latest submissions from the database.</p>
+            </div>
+          )}
+
+          {!isInitialLoading && filteredReports.length === 0 && (
             <div className="py-32 text-center">
               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search size={24} className="text-slate-300" />

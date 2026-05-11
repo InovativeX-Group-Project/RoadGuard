@@ -68,6 +68,7 @@ export interface StatusHistory {
 
 export interface Comment {
   id: string;
+  authorUserId?: string | null;
   author: string;
   text: string;
   timestamp: string;

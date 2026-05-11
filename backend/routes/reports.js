@@ -110,7 +110,7 @@ const getReportComments = async (reportId) => {
 
   if (schema.hasReportComments) {
     const result = await query(
-      `SELECT id, author_name, comment_text, created_at
+      `SELECT id, author_user_id, author_name, comment_text, created_at
        FROM report_comments
        WHERE report_id = $1
        ORDER BY created_at ASC`,
@@ -119,6 +119,7 @@ const getReportComments = async (reportId) => {
 
     return result.rows.map((c) => ({
       id: c.id,
+      authorUserId: c.author_user_id,
       author: c.author_name,
       text: c.comment_text,
       timestamp: c.created_at,
@@ -135,6 +136,7 @@ const getReportComments = async (reportId) => {
 
   return result.rows.map((c) => ({
     id: c.id,
+    authorUserId: null,
     author: c.author,
     text: c.text,
     timestamp: c.timestamp,
@@ -205,20 +207,12 @@ router.get('/', authenticateToken, async (req, res) => {
       const schema = await getSchemaCapabilities();
       const timeCol = schema.hasReportedAt ? 'reported_at' : 'timestamp';
       const imageCol = schema.hasImageUrl ? 'image_url' : 'image';
-      const params = [];
-      let whereClause = '';
-
-      if (req.user.role !== 'admin') {
-        whereClause = 'WHERE user_id = $1';
-        params.push(req.user.id);
-      }
 
       const result = await query(
         `SELECT id, user_id, ${imageCol} as image, issue_type, description, location, status, ${timeCol} as reported_at
          FROM reports
-         ${whereClause}
          ORDER BY ${timeCol} DESC`,
-        params
+        []
       );
 
       const reports = await Promise.all(
@@ -236,17 +230,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const reports = await getReports();
 
-    // Filter reports based on user role
-    let filteredReports;
-    if (req.user.role === 'admin') {
-      // Admins see all reports
-      filteredReports = reports;
-    } else {
-      // Citizens see only their own reports
-      filteredReports = reports.filter(r => r.userId === req.user.id);
-    }
-
-    res.json(filteredReports);
+    res.json(reports);
   } catch (error) {
     console.error('Error fetching reports:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -262,10 +246,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
         return res.status(404).json({ error: 'Report not found' });
       }
 
-      if (req.user.role !== 'admin' && report.userId !== req.user.id) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-
       res.json(report);
       return;
     }
@@ -274,11 +254,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     if (!report) {
       return res.status(404).json({ error: 'Report not found' });
-    }
-
-    // Check if user can access this report
-    if (req.user.role !== 'admin' && report.userId !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
     }
 
     res.json(report);
@@ -456,13 +431,14 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
         const result = await query(
           `INSERT INTO report_comments (id, report_id, author_user_id, author_name, comment_text, created_at)
            VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())
-           RETURNING id, author_name, comment_text, created_at`,
+           RETURNING id, author_user_id, author_name, comment_text, created_at`,
           [req.params.id, req.user.id, req.user.name || req.user.email, text.trim()]
         );
 
         const row = result.rows[0];
         return res.status(201).json({
           id: row.id,
+          authorUserId: row.author_user_id,
           author: row.author_name,
           text: row.comment_text,
           timestamp: row.created_at,
@@ -479,6 +455,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
       const row = result.rows[0];
       return res.status(201).json({
         id: row.id,
+        authorUserId: null,
         author: row.author,
         text: row.text,
         timestamp: row.timestamp,

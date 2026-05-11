@@ -5,10 +5,94 @@ const USER_KEY = 'roadguard_user';
 const USERS_KEY = 'roadguard_users';
 const TOKEN_KEY = 'roadguard_token';
 const API_BASE_URL = 'http://localhost:5000/api';
+const LAST_SEEN_COMMENT_TS_KEY_PREFIX = 'roadguard_last_seen_comment_ts';
 
 interface StoredUser extends User {
   password: string;
 }
+
+const normalizeName = (value: string | null | undefined): string =>
+  (value ?? '').trim().toLowerCase();
+
+const getLastSeenStorageKey = (userId: string) =>
+  `${LAST_SEEN_COMMENT_TS_KEY_PREFIX}_${userId}`;
+
+const readLastSeenMap = (userId: string): Record<string, string> => {
+  const raw = localStorage.getItem(getLastSeenStorageKey(userId));
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return parsed as Record<string, string>;
+    }
+  } catch {
+    return {};
+  }
+
+  return {};
+};
+
+const writeLastSeenMap = (userId: string, nextMap: Record<string, string>) => {
+  localStorage.setItem(getLastSeenStorageKey(userId), JSON.stringify(nextMap));
+};
+
+export const getLastSeenCommentTimestamp = (userId: string, reportId: string): string | null => {
+  const map = readLastSeenMap(userId);
+  return map[reportId] ?? null;
+};
+
+export const markReportCommentsSeen = (userId: string, reportId: string, comments: Comment[]) => {
+  if (!comments.length) {
+    return;
+  }
+
+  const latestTimestamp = comments.reduce<string | null>((latest, comment) => {
+    if (!latest) {
+      return comment.timestamp;
+    }
+
+    return new Date(comment.timestamp).getTime() > new Date(latest).getTime()
+      ? comment.timestamp
+      : latest;
+  }, null);
+
+  if (!latestTimestamp) {
+    return;
+  }
+
+  const map = readLastSeenMap(userId);
+  map[reportId] = latestTimestamp;
+  writeLastSeenMap(userId, map);
+};
+
+export const getUnreadIncomingCommentsCount = (
+  user: User | null,
+  report: Report
+): number => {
+  if (!user) {
+    return 0;
+  }
+
+  const currentUserName = normalizeName(user.name);
+  const lastSeen = getLastSeenCommentTimestamp(user.id, report.id);
+  const lastSeenMs = lastSeen ? new Date(lastSeen).getTime() : 0;
+
+  return report.comments.filter((comment) => {
+    const commentMs = new Date(comment.timestamp).getTime();
+    if (Number.isNaN(commentMs) || commentMs <= lastSeenMs) {
+      return false;
+    }
+
+    if (comment.authorUserId) {
+      return comment.authorUserId !== user.id;
+    }
+
+    return normalizeName(comment.author) !== currentUserName;
+  }).length;
+};
 
 const DEFAULT_AUTH_USERS: StoredUser[] = [
   {
