@@ -21,49 +21,6 @@ const DEFAULT_AUTH_USERS: StoredUser[] = [
 ];
 
 const INITIAL_REPORTS: Report[] = [
-  {
-    id: 'rep-mock-1',
-    userId: 'user-1',
-    image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80',
-    issueType: 'Pothole',
-    description: 'Large pothole in the middle of the left lane. Hazardous for low cars.',
-    location: 'Jan Shoba St, Pretoria',
-    timestamp: new Date().toISOString(),
-    status: 'In Progress',
-    history: [
-      {
-        status: 'Pending',
-        timestamp: new Date().toISOString(),
-        updatedBy: 'Self',
-      },
-    ],
-    comments: [
-      {
-        id: 'c1',
-        author: 'Municipal Staff',
-        text: 'Crew dispatched to assess.',
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  },
-  {
-    id: 'rep-mock-2',
-    userId: 'user-1',
-    image: 'https://images.unsplash.com/photo-1590481284891-95562723707c?auto=format&fit=crop&w=800&q=80',
-    issueType: 'Broken Traffic Light',
-    description: 'Main intersection lights are out. Causing major congestion.',
-    location: 'Glyn St & Burnett St, Pretoria',
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
-    status: 'Resolved',
-    history: [
-      {
-        status: 'Resolved',
-        timestamp: new Date().toISOString(),
-        updatedBy: 'Council',
-      },
-    ],
-    comments: [],
-  },
 ];
 
 const readReports = (): Report[] => {
